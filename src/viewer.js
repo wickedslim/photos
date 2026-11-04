@@ -167,8 +167,9 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
   });
 
   // ── «Поделиться»: меню снизу, как на iPhone ──
-  // Поделиться — системное меню телефона с самим фото (JPEG до 1280 px: больше Яндекс без сервера не отдаёт).
-  // Сохранить — оригинал в полном качестве; его скачивает сам Telegram, поэтому браузер не открывается.
+  // «Сохранить в Фото» и «Поделиться» — системное меню телефона с самим фото (JPEG до 1280 px: больше Яндекс
+  // без сервера не отдаёт); в нём «Сохранить изображение» кладёт фото прямо в галерею.
+  // «Оригинал в Файлы» — полное качество; файл скачивает сам Telegram, поэтому браузер не открывается.
   async function shareSheet(it) {
     const canShareFiles = typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
     const wrap = document.createElement('div');
@@ -176,8 +177,9 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
     wrap.innerHTML = `
       <div class="asheet">
         <div class="asheet-group">
-          ${canShareFiles ? '<button data-a="share"><span>Поделиться</span><span class="spinner small" hidden></span></button>' : ''}
-          <button data-a="save">Сохранить на телефон</button>
+          ${canShareFiles ? '<button data-a="photos" data-needs-file><span>Сохранить в Фото</span><span class="spinner small" hidden></span></button>' : ''}
+          ${canShareFiles ? '<button data-a="share" data-needs-file><span>Поделиться</span><span class="spinner small" hidden></span></button>' : ''}
+          <button data-a="save">Сохранить оригинал в Файлы</button>
         </div>
         <button class="asheet-cancel" data-a="cancel">Отмена</button>
       </div>`;
@@ -194,21 +196,23 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
     // Готовим файл заранее: системное меню «Поделиться» открывается только сразу после нажатия,
     // ждать загрузку в этот момент нельзя.
     let file = null;
-    const shareBtn = wrap.querySelector('[data-a="share"]');
-    if (shareBtn) {
-      shareBtn.querySelector('.spinner').hidden = false;
-      const job = bigs.load(it, BIG);
-      job.promise
-        .then((u) => fetch(u))
+    const fileBtns = [...wrap.querySelectorAll('[data-needs-file]')];
+    if (fileBtns.length) {
+      const spin = (on) => fileBtns.forEach((b) => (b.querySelector('.spinner').hidden = !on));
+      const drop = () => fileBtns.forEach((b) => b.remove());
+      spin(true);
+      bigs
+        .load(it, BIG)
+        .promise.then((u) => fetch(u))
         .then((r) => r.blob())
         .then((b) => {
           const name = it.n.replace(/\.[^.]+$/, '') + '.jpg';
           const f = new File([b], name, { type: 'image/jpeg' });
           if (navigator.canShare({ files: [f] })) file = f;
-          else shareBtn.remove();
+          else drop();
         })
-        .catch(() => shareBtn.remove())
-        .finally(() => shareBtn.isConnected && (shareBtn.querySelector('.spinner').hidden = true));
+        .catch(drop)
+        .finally(() => spin(false));
     }
     const href = disk.originalUrl(it).catch(() => null);
 
@@ -216,9 +220,11 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
       const a = e.target.closest('[data-a]')?.dataset.a;
       if (!a) return close(); // тап мимо меню
       if (a === 'cancel') return close();
-      if (a === 'share') {
+      if (a === 'share' || a === 'photos') {
         if (!file) return toast('Секунду, готовлю фото…');
         close();
+        // Веб-приложение не может само положить фото в галерею — это делает системное меню iPhone.
+        if (a === 'photos') toast('Нажмите «Сохранить изображение»');
         try {
           await navigator.share({ files: [file] });
         } catch (err) {
