@@ -168,8 +168,8 @@ input { font: inherit; color: inherit; }
   .setup, .sheet { padding-left: max(16px, calc(50% - 280px)); padding-right: max(16px, calc(50% - 280px)); }
 }
 /* перекрываем z-index из photoswipe.css (.pswp__hide-on-close) */
-.pswp .v-bar { z-index: 20; }
-.pswp .v-info { z-index: 15; }
+.pswp.ios-viewer .v-bar { z-index: 20; }
+.pswp.ios-viewer .v-info { z-index: 15; }
 .group-foot + .group { margin-top: 22px; }
 
 /* ── Вкладки и таб-бар ───────────────────────── */

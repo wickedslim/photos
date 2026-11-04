@@ -185,10 +185,15 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
     q('.v-time').textContent = fmtTime.format(d);
     q('.v-heart').classList.toggle('on', favorites.has(it.p));
     const folder = it.p.replace(/^disk:/, '').split('/').slice(0, -1).join('/') || '/';
-    q('.v-info').innerHTML = `
-      <div class="v-info-date">${fmtFull.format(d)}</div>
-      <div class="v-info-row"><span>${it.n}</span><span>${fmtSize(it.s)}</span></div>
-      <div class="v-info-row muted"><span>Папка</span><span>${folder}</span></div>`;
+    // Имена файлов и папок приходят с Диска — только как текст, никогда как HTML.
+    const row = (cls, a, b) => {
+      const r = document.createElement('div');
+      r.className = cls;
+      for (const t of [a, b]) r.append(Object.assign(document.createElement('span'), { textContent: t }));
+      return r;
+    };
+    const head = Object.assign(document.createElement('div'), { className: 'v-info-date', textContent: fmtFull.format(d) });
+    q('.v-info').replaceChildren(head, row('v-info-row', it.n, fmtSize(it.s)), row('v-info-row muted', 'Папка', folder));
     updateLoading();
   }
 

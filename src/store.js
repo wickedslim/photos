@@ -1,5 +1,5 @@
 // Локальный кэш: индекс фото — в IndexedDB, превью — в Cache Storage браузера.
-import { get, set, del } from 'idb-keyval';
+import { get, set, del, createStore, clear } from 'idb-keyval';
 
 const indexKey = (ns) => `index-v2:${ns}`;
 
@@ -41,4 +41,18 @@ export async function storageUsage() {
   } catch {
     return 0;
   }
+}
+
+// Всё, что приложение хранит на устройстве о Диске пользователя: список фото, миниатюры,
+// результаты анализа лиц и имена людей. Стираем при отключении Диска и при входе в другой аккаунт,
+// чтобы чужие фото и лица не смешивались.
+export async function wipeLocalData(ns) {
+  const tasks = [
+    clearIndex(ns),
+    clear(createStore(`ml-${ns}-photos`, 'kv')),
+    clear(createStore(`ml-${ns}-clusters`, 'kv')),
+    'caches' in window ? caches.delete('previews-' + ns) : null,
+  ];
+  await Promise.allSettled(tasks);
+  for (const k of [`people-names-${ns}`, `ml-enabled-${ns}`]) localStorage.removeItem(k);
 }

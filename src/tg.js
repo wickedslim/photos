@@ -47,13 +47,27 @@ export const storage = {
   get(key) {
     if (!useCloud) return Promise.resolve(localStorage.getItem(key));
     return new Promise((resolve) => {
-      tg.CloudStorage.getItem(key, (err, value) => resolve(err ? localStorage.getItem(key) : value || null));
+      tg.CloudStorage.getItem(key, (err, value) => {
+        if (err || !value) return resolve(localStorage.getItem(key));
+        localStorage.removeItem(key); // в облаке есть — локальная копия (от старых версий) не нужна
+        resolve(value);
+      });
     });
   },
+  // В Telegram пишем только в CloudStorage: на github.io адрес сайта общий для всех проектов
+  // владельца, и лишняя копия токена в localStorage ни к чему.
   set(key, value) {
-    localStorage.setItem(key, value);
-    if (!useCloud) return Promise.resolve();
-    return new Promise((resolve) => tg.CloudStorage.setItem(key, value, () => resolve()));
+    if (!useCloud) {
+      localStorage.setItem(key, value);
+      return Promise.resolve();
+    }
+    localStorage.removeItem(key);
+    return new Promise((resolve) =>
+      tg.CloudStorage.setItem(key, value, (err) => {
+        if (err) localStorage.setItem(key, value); // запасной вариант, если облако недоступно
+        resolve();
+      }),
+    );
   },
   remove(key) {
     localStorage.removeItem(key);

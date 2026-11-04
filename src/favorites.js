@@ -53,6 +53,12 @@ export class Favorites {
     for (const fn of this.listeners) fn();
   }
 
+  async clear() {
+    this.set = new Set();
+    this.emit();
+    await this.save();
+  }
+
   async save() {
     const chunks = [];
     let cur = [];

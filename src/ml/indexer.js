@@ -88,6 +88,7 @@ export class Indexer extends EventTarget {
     this.models = { vision: 0, text: 0 }; // прогресс загрузки моделей 0..1
     this.ready = this.loadFromDb();
     document.addEventListener('visibilitychange', () => document.hidden || this.kick());
+    addEventListener('online', () => this.kick());
   }
 
   get enabledKey() {
@@ -141,8 +142,16 @@ export class Indexer extends EventTarget {
     this.emit('progress');
   }
 
+  // Остановить анализ, не удаляя результаты (например, когда доступ к Диску пропал).
+  stop() {
+    this.stopped = true;
+    this.stopRequested = true;
+    clearTimeout(this.retryT);
+  }
+
   async disable() {
     localStorage.removeItem(this.enabledKey);
+    clearTimeout(this.retryT);
     this.stopRequested = true;
     this.state = 'off';
     this.recs.clear();
@@ -155,7 +164,7 @@ export class Indexer extends EventTarget {
   }
 
   kick() {
-    if (!this.enabled || this.running || !this.items.length) return;
+    if (!this.enabled || this.running || this.stopped || !this.items.length) return;
     this.run();
   }
 
@@ -224,6 +233,16 @@ export class Indexer extends EventTarget {
         } catch (e) {
           if (e?.name === 'AbortError') continue;
           console.warn('analyze failed', next.p, e);
+          // Нет сети, Яндекс недоступен или токен отозван — не помечаем фото как «готово»,
+          // а ставим анализ на паузу и пробуем позже. Пропускаем только файлы, которые не открыть.
+          if (!(e?.status === 404 || e?.decode)) {
+            await flush();
+            this.setState('error', 'Нет связи с Яндекс Диском — продолжу позже');
+            this.running = false;
+            clearTimeout(this.retryT);
+            this.retryT = setTimeout(() => this.kick(), 60000);
+            return;
+          }
           rec = { c: null, f: [], err: 1 };
         }
         if (this.stopRequested) break;
@@ -243,13 +262,21 @@ export class Indexer extends EventTarget {
       this.setState('error', e.message || 'Ошибка анализа');
     } finally {
       this.running = false;
+      // Выключили и сразу включили снова, пока шёл анализ, — продолжаем.
+      if (this.stopRequested && this.enabled && !this.stopped) queueMicrotask(() => this.kick());
     }
   }
 
   async analyze(item, dirtyClusters) {
     const job = this.loader.load(item, 'L');
     const url = await job.promise;
-    const bmp = await createImageBitmap(await (await fetch(url)).blob());
+    let bmp;
+    try {
+      bmp = await createImageBitmap(await (await fetch(url)).blob());
+    } catch (e) {
+      e.decode = true; // битый или неподдерживаемый файл — пропустим его
+      throw e;
+    }
     const k = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(bmp.width * k);

@@ -4,7 +4,16 @@
 //  - текст: многоязычная версия CLIP (понимает русский, ≈ 136 МБ) — грузится только при поиске
 import { AutoProcessor, CLIPVisionModelWithProjection, AutoTokenizer, AutoModel, RawImage, env } from '@huggingface/transformers';
 
+// Движок ONNX Runtime (JS + WebAssembly) берём со своего сайта, а не с CDN jsdelivr:
+// исполняемый код приходит только от нас, из сети скачиваются лишь веса моделей.
+import ortMjs from 'onnxruntime-web/ort-wasm-simd-threaded.mjs?url';
+import ortWasm from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
+
 env.allowLocalModels = false;
+env.backends.onnx.wasm.wasmPaths = {
+  mjs: new URL(ortMjs, self.location.href).href,
+  wasm: new URL(ortWasm, self.location.href).href,
+};
 
 const VISION = 'Xenova/clip-vit-base-patch32';
 const TEXT = 'aurantium/clip-ViT-B-32-multilingual-v1';

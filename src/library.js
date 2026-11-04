@@ -183,6 +183,8 @@ export class Library {
       if (v) this.show(v);
     });
     q('[data-act="settings"]').addEventListener('click', onSettings);
+    // Ширина кнопок может поменяться после первой отрисовки (шрифты, поворот экрана) — двигаем «бегунок» следом.
+    new ResizeObserver(() => this.placeThumb()).observe(q('.segmented'));
     this.show('all');
   }
 
@@ -192,18 +194,21 @@ export class Library {
     for (const [k, v] of Object.entries(this.views)) v.classList.toggle('active', k === view);
     const btns = [...this.root.querySelectorAll('.segmented button')];
     btns.forEach((b) => b.classList.toggle('selected', b.dataset.view === view));
-    const sel = btns.find((b) => b.dataset.view === view);
-    const thumb = this.root.querySelector('.seg-thumb');
-    requestAnimationFrame(() => {
-      thumb.style.width = sel.offsetWidth + 'px';
-      thumb.style.transform = `translateX(${sel.offsetLeft}px)`;
-    });
+    requestAnimationFrame(() => this.placeThumb());
     if (view === 'all') this.grid.render();
     else {
       this.title.textContent = view === 'years' ? 'Годы' : 'Месяцы';
       this.sub.textContent = this.items.length ? photosCount(this.items.length) : '';
     }
     haptic('light');
+  }
+
+  placeThumb() {
+    const sel = this.root.querySelector('.segmented .selected');
+    const thumb = this.root.querySelector('.seg-thumb');
+    if (!sel || !sel.offsetWidth) return;
+    thumb.style.width = sel.offsetWidth + 'px';
+    thumb.style.transform = `translateX(${sel.offsetLeft}px)`;
   }
 
   setItems(items) {

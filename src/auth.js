@@ -5,6 +5,7 @@
 // приложение по-прежнему «внутри Telegram» и токен попадает в CloudStorage пользователя.
 
 const STATE_KEY = 'ya_oauth_state';
+const SCOPE = 'cloud_api:disk.read';
 export const MANUAL_REDIRECT = 'https://oauth.yandex.ru/verification_code';
 
 // Адрес, на который Яндекс вернёт пользователя. Его нужно указать в настройках приложения
@@ -18,6 +19,9 @@ function authorizeUrl(clientId, redirect, state) {
   u.searchParams.set('response_type', 'token');
   u.searchParams.set('client_id', clientId);
   u.searchParams.set('redirect_uri', redirect);
+  // Явно просим только чтение: даже если в настройках приложения на oauth.yandex.ru
+  // когда-нибудь появятся другие права, выданный токен останется «только просмотр».
+  u.searchParams.set('scope', SCOPE);
   if (state) u.searchParams.set('state', state);
   return u.toString();
 }

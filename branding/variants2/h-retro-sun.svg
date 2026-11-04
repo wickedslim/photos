@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1E1446"/><stop offset="0.6" stop-color="#3A1659"/><stop offset="1" stop-color="#5A1A52"/></linearGradient>
+<radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FF7A59" stop-opacity="0.55"/><stop offset="1" stop-color="#FF7A59" stop-opacity="0"/></radialGradient><linearGradient id="sun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE08A"/><stop offset="0.5" stop-color="#FF8A5B"/><stop offset="1" stop-color="#E0457B"/></linearGradient>
+<mask id="cuts"><rect width="1024" height="1024" fill="#fff"/><rect x="0" y="560" width="1024" height="12" fill="#000"/><rect x="0" y="612" width="1024" height="19" fill="#000"/><rect x="0" y="664" width="1024" height="26" fill="#000"/><rect x="0" y="716" width="1024" height="33" fill="#000"/></mask>
+<clipPath id="frame"><rect x="112" y="268" width="800" height="488" rx="52"/></clipPath></defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<circle cx="512" cy="540" r="520" fill="url(#glow)"/>
+<g fill="#fff" fill-opacity="0.92"><rect x="150" y="160" width="68" height="68" rx="18"/><rect x="150" y="796" width="68" height="68" rx="18"/><rect x="278" y="160" width="68" height="68" rx="18"/><rect x="278" y="796" width="68" height="68" rx="18"/><rect x="406" y="160" width="68" height="68" rx="18"/><rect x="406" y="796" width="68" height="68" rx="18"/><rect x="534" y="160" width="68" height="68" rx="18"/><rect x="534" y="796" width="68" height="68" rx="18"/><rect x="662" y="160" width="68" height="68" rx="18"/><rect x="662" y="796" width="68" height="68" rx="18"/><rect x="790" y="160" width="68" height="68" rx="18"/><rect x="790" y="796" width="68" height="68" rx="18"/></g>
+<g clip-path="url(#frame)"><rect x="112" y="268" width="800" height="488" fill="#2A1A5E"/>
+<circle cx="512" cy="610" r="270" fill="url(#sun)" mask="url(#cuts)"/>
+<path d="M112 690 L320 600 L460 670 L610 585 L912 700 L912 756 L112 756 Z" fill="#3B1650"/></g>
+<rect x="112" y="268" width="800" height="488" rx="52" fill="none" stroke="#fff" stroke-opacity="0.95" stroke-width="26"/>
+</svg>

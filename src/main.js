@@ -1,7 +1,7 @@
 import './style.css';
 import { initTelegram, storage, haptic } from './tg.js';
 import { YaDisk, AuthError, isAbort } from './api.js';
-import { loadIndex, saveIndex, clearIndex, previewStore } from './store.js';
+import { loadIndex, saveIndex, previewStore, wipeLocalData } from './store.js';
 import { PreviewLoader } from './loader.js';
 import { Library } from './library.js';
 import { Collections, openPage } from './collections.js';
@@ -13,6 +13,7 @@ import { takeOAuthResult } from './auth.js';
 import { Indexer } from './ml/indexer.js';
 
 const FULL_REFRESH_MS = 24 * 3600 * 1000;
+const NS = 'real'; // пространство имён локальных данных
 const app = document.getElementById('app');
 
 initTelegram();
@@ -26,6 +27,7 @@ async function boot(message) {
     app.innerHTML = '<div class="empty"><span class="spinner"></span><div>Подключаю Яндекс Диск…</div></div>';
     try {
       const me = await new YaDisk(oauth.token).me();
+      await rememberAccount(me.uid);
       await storage.set('ya_token', oauth.token);
       toast(me.name ? `Подключено: ${me.name}` : 'Подключено');
     } catch (e) {
@@ -38,6 +40,17 @@ async function boot(message) {
   startLibrary(new YaDisk(token));
 }
 
+// Вошли в другой аккаунт Яндекса — стираем всё, что осталось на устройстве от прежнего.
+async function rememberAccount(uid) {
+  const prev = await storage.get('ya_uid');
+  if (prev && uid && prev !== uid) {
+    await wipeLocalData(NS);
+    await new Favorites(NS).clear();
+    await storage.remove('folder');
+  }
+  if (uid) await storage.set('ya_uid', uid);
+}
+
 function normFolder(v) {
   const s = (v || '').trim().replace(/^disk:/, '').replace(/\/+$/, '');
   if (!s) return '';
@@ -45,7 +58,9 @@ function normFolder(v) {
 }
 
 async function startLibrary(disk) {
-  const ns = disk.kind;
+  const ns = NS;
+  // Для тех, кто вошёл до появления проверки аккаунта, запоминаем его сейчас.
+  storage.get('ya_uid').then((uid) => uid || disk.me().then((m) => rememberAccount(m.uid), () => {}));
   const store = previewStore('previews-' + ns);
   const thumbs = new PreviewLoader(disk, store, { concurrency: 8, persist: true, memLimit: 800 });
   const bigs = new PreviewLoader(disk, store, { concurrency: 3, persist: false, memLimit: 16 });
@@ -123,11 +138,14 @@ async function startLibrary(disk) {
           library.setItems(shown);
         },
         onLogout: async () => {
+          // Отключение = на устройстве не остаётся ничего: токен, список фото, миниатюры, лица, имена, избранное.
           thumbs.clearMemory();
-          await store.clear();
-          await clearIndex(ns);
-          await storage.remove('ya_token');
-          boot();
+          bigs.clearMemory();
+          await indexer.disable();
+          await wipeLocalData(ns);
+          await favorites.clear();
+          for (const k of ['ya_token', 'ya_uid', 'folder']) await storage.remove(k);
+          location.replace(location.pathname);
         },
       }),
   });
@@ -160,6 +178,7 @@ async function startLibrary(disk) {
         }
       } catch (e) {
         if (e instanceof AuthError) {
+          indexer.stop();
           await storage.remove('ya_token');
           return boot('Доступ к Диску пропал — подключите его заново.');
         }

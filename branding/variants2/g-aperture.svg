@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1E1446"/><stop offset="0.6" stop-color="#3A1659"/><stop offset="1" stop-color="#5A1A52"/></linearGradient>
+<radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FF7A59" stop-opacity="0.55"/><stop offset="1" stop-color="#FF7A59" stop-opacity="0"/></radialGradient><clipPath id="lens"><circle cx="512" cy="512" r="372"/></clipPath>
+<radialGradient id="core" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFF6D8"/><stop offset="1" stop-color="#FFD98A"/></radialGradient>
+<radialGradient id="shade" cx="0.5" cy="0.5" r="0.5"><stop offset="0.3" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#1A0B3D" stop-opacity="0.35"/></radialGradient></defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<circle cx="512" cy="560" r="520" fill="url(#glow)"/>
+<g clip-path="url(#lens)"><path d="M512.0 394.0 L614.2 453.0 L1393.6 903.0 L1291.4 -56.0 Z" fill="#FFC24B"/><path d="M614.2 453.0 L614.2 571.0 L614.2 1471.0 L1393.6 903.0 Z" fill="#FF8A4C"/><path d="M614.2 571.0 L512.0 630.0 L-267.4 1080.0 L614.2 1471.0 Z" fill="#FF5A6E"/><path d="M512.0 630.0 L409.8 571.0 L-369.6 121.0 L-267.4 1080.0 Z" fill="#D9467F"/><path d="M409.8 571.0 L409.8 453.0 L409.8 -447.0 L-369.6 121.0 Z" fill="#9B3FC8"/><path d="M409.8 453.0 L512.0 394.0 L1291.4 -56.0 L409.8 -447.0 Z" fill="#5B4BE0"/><circle cx="512" cy="512" r="372" fill="url(#shade)"/></g>
+<g stroke="#1E1446" stroke-opacity="0.35" stroke-width="6" fill="none" clip-path="url(#lens)"><path d="M512.0 394.0 L1393.6 903.0"/><path d="M614.2 453.0 L614.2 1471.0"/><path d="M614.2 571.0 L-267.4 1080.0"/><path d="M512.0 630.0 L-369.6 121.0"/><path d="M409.8 571.0 L409.8 -447.0"/><path d="M409.8 453.0 L1291.4 -56.0"/></g>
+<path d="M512.0 394.0 L614.2 453.0 L614.2 571.0 L512.0 630.0 L409.8 571.0 L409.8 453.0 Z" fill="url(#core)"/>
+<circle cx="512" cy="512" r="372" fill="none" stroke="#fff" stroke-opacity="0.9" stroke-width="22"/>
+</svg>

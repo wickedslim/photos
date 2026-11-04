@@ -1,12 +1,14 @@
 // Клиент REST API Яндекс Диска. Работает прямо из браузера: API и сервер превью разрешают CORS.
 const BASE = 'https://cloud-api.yandex.net/v1/disk';
-const ITEM_FIELDS = ['name', 'path', 'preview', 'created', 'modified', 'photoslice_time', 'exif', 'size', 'mime_type'];
+const ITEM_FIELDS = ['name', 'path', 'preview', 'created', 'modified', 'photoslice_time', 'exif', 'size', 'mime_type', 'media_type'];
 const LIST_FIELDS = ITEM_FIELDS.map((f) => 'items.' + f).join(',');
 
 // Размер превью, ссылки на которое приходят вместе со списком файлов.
 export const LIST_PREVIEW = 'L';
 
 export class AuthError extends Error {}
+
+const isPhoto = (r) => r.media_type === 'image';
 
 export function isAbort(e) {
   return e?.name === 'AbortError';
@@ -67,28 +69,33 @@ export class YaDisk {
         const j = await res.json();
         msg = j.message || j.description || msg;
       } catch {}
-      throw new Error(`Яндекс Диск: ${msg} (${res.status})`);
+      const e = new Error(`Яндекс Диск: ${msg} (${res.status})`);
+      e.status = res.status;
+      throw e;
     }
     return res.json();
   }
 
   async me() {
-    const d = await this.api('', { fields: 'user.display_name,user.login,total_space,used_space' });
-    return { name: d.user?.display_name || d.user?.login || '', total: d.total_space, used: d.used_space };
+    const d = await this.api('', { fields: 'user.uid,user.display_name,user.login,total_space,used_space' });
+    return { uid: String(d.user?.uid || ''), name: d.user?.display_name || d.user?.login || '', total: d.total_space, used: d.used_space };
   }
 
   // Полный список всех фото на Диске (постранично).
+  // Фильтр media_type=image Яндекс применяет ПОСЛЕ разбивки на страницы: страница из 1000 файлов
+  // возвращает только фото среди них, и по «неполной» странице нельзя понять, что список кончился.
+  // Поэтому берём все файлы и отбираем фото сами.
   async listAll(onProgress, signal) {
     const out = [];
     const limit = 1000;
     for (let offset = 0; ; offset += limit) {
       const d = await this.api(
         '/resources/files',
-        { media_type: 'image', limit, offset, preview_size: LIST_PREVIEW, fields: LIST_FIELDS },
+        { limit, offset, preview_size: LIST_PREVIEW, fields: LIST_FIELDS },
         signal,
       );
       const items = d.items || [];
-      for (const r of items) out.push(compact(r));
+      for (const r of items) if (isPhoto(r)) out.push(compact(r));
       onProgress?.(out.length);
       if (items.length < limit) break;
     }
@@ -97,17 +104,17 @@ export class YaDisk {
 
   // Недавно загруженные — для быстрого обновления без полного пересканирования.
   async recent(limit = 300, signal) {
-    const d = await this.api(
-      '/resources/last-uploaded',
-      { media_type: 'image', limit, preview_size: LIST_PREVIEW, fields: LIST_FIELDS },
-      signal,
-    );
-    return (d.items || []).map(compact);
+    const d = await this.api('/resources/last-uploaded', { limit, preview_size: LIST_PREVIEW, fields: LIST_FIELDS }, signal);
+    return (d.items || []).filter(isPhoto).map(compact);
   }
 
   async previewUrl(path, size, signal) {
     const d = await this.api('/resources', { path, preview_size: size, fields: 'preview' }, signal);
-    if (!d.preview) throw new Error('У файла нет превью');
+    if (!d.preview) {
+      const e = new Error('У файла нет превью');
+      e.status = 404;
+      throw e;
+    }
     return d.preview;
   }
 
