@@ -56,7 +56,10 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
           loading.delete(i);
           if (!destroyed) {
             pswp.refreshSlideContent(i);
-            if (pswp.currIndex === i) updateLoading();
+            if (pswp.currIndex === i) {
+              updateLoading();
+              prepareShare(it);
+            }
           }
         },
         (e) => {
@@ -152,8 +155,7 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
             pswp.element.classList.toggle('info-open', infoOpen);
             haptic('light');
           } else if (act === 'share') {
-            haptic('light');
-            shareSheet(it);
+            share(it);
           }
         });
       },
@@ -166,77 +168,50 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
     });
   });
 
-  // ── «Поделиться»: меню снизу, как на iPhone ──
-  // «Сохранить в Фото» и «Поделиться» — системное меню телефона с самим фото (JPEG до 1280 px: больше Яндекс
-  // без сервера не отдаёт); в нём «Сохранить изображение» кладёт фото прямо в галерею.
-  // «Оригинал в Файлы» — полное качество; файл скачивает сам Telegram, поэтому браузер не открывается.
-  async function shareSheet(it) {
-    const canShareFiles = typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
-    const wrap = document.createElement('div');
-    wrap.className = 'asheet-wrap';
-    wrap.innerHTML = `
-      <div class="asheet">
-        <div class="asheet-group">
-          ${canShareFiles ? '<button data-a="photos" data-needs-file><span>Сохранить в Фото</span><span class="spinner small" hidden></span></button>' : ''}
-          ${canShareFiles ? '<button data-a="share" data-needs-file><span>Поделиться</span><span class="spinner small" hidden></span></button>' : ''}
-          <button data-a="save">Сохранить оригинал в Файлы</button>
-        </div>
-        <button class="asheet-cancel" data-a="cancel">Отмена</button>
-      </div>`;
-    document.body.append(wrap);
-    requestAnimationFrame(() => wrap.classList.add('open'));
-    let popBack = () => {};
-    const close = () => {
-      popBack();
-      wrap.classList.remove('open');
-      setTimeout(() => wrap.remove(), 250);
-    };
-    popBack = pushBack(close);
+  // ── «Поделиться», как на iPhone: сразу системное меню телефона с самим фото ──
+  // В нём и отправка, и «Сохранить изображение» (в галерею). Файл готовим заранее, пока фото открыто:
+  // системное меню открывается только в момент нажатия, ждать загрузку тогда уже нельзя.
+  // JPEG до 1280 px — больше Яндекс без сервера не отдаёт; оригинал — кнопкой на панели ⓘ.
+  const canShareFiles = typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
+  let shareFile = null; // { p, file }
+  let preparing = null;
 
-    // Готовим файл заранее: системное меню «Поделиться» открывается только сразу после нажатия,
-    // ждать загрузку в этот момент нельзя.
-    let file = null;
-    const fileBtns = [...wrap.querySelectorAll('[data-needs-file]')];
-    if (fileBtns.length) {
-      const spin = (on) => fileBtns.forEach((b) => (b.querySelector('.spinner').hidden = !on));
-      const drop = () => fileBtns.forEach((b) => b.remove());
-      spin(true);
-      bigs
-        .load(it, BIG)
-        .promise.then((u) => fetch(u))
-        .then((r) => r.blob())
-        .then((b) => {
-          const name = it.n.replace(/\.[^.]+$/, '') + '.jpg';
-          const f = new File([b], name, { type: 'image/jpeg' });
-          if (navigator.canShare({ files: [f] })) file = f;
-          else drop();
-        })
-        .catch(drop)
-        .finally(() => spin(false));
+  function prepareShare(it) {
+    if (!canShareFiles || shareFile?.p === it.p || preparing === it.p) return;
+    const url = bigs.peek(it, BIG);
+    if (!url) return; // подготовим, когда загрузится большое фото
+    preparing = it.p;
+    fetch(url)
+      .then((r) => r.blob())
+      .then((b) => {
+        const f = new File([b], it.n.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+        if (navigator.canShare({ files: [f] })) shareFile = { p: it.p, file: f };
+      })
+      .catch(() => {})
+      .finally(() => preparing === it.p && (preparing = null));
+  }
+
+  async function share(it) {
+    if (!canShareFiles) return saveOriginal(it);
+    if (shareFile?.p !== it.p) {
+      prepareShare(it);
+      return toast('Секунду, фото ещё загружается');
     }
-    const href = disk.originalUrl(it).catch(() => null);
+    try {
+      await navigator.share({ files: [shareFile.file] });
+    } catch (err) {
+      if (err?.name !== 'AbortError') toast('Не получилось поделиться');
+    }
+  }
 
-    wrap.addEventListener('click', async (e) => {
-      const a = e.target.closest('[data-a]')?.dataset.a;
-      if (!a) return close(); // тап мимо меню
-      if (a === 'cancel') return close();
-      if (a === 'share' || a === 'photos') {
-        if (!file) return toast('Секунду, готовлю фото…');
-        close();
-        // Веб-приложение не может само положить фото в галерею — это делает системное меню iPhone.
-        if (a === 'photos') toast('Нажмите «Сохранить изображение»');
-        try {
-          await navigator.share({ files: [file] });
-        } catch (err) {
-          if (err?.name !== 'AbortError') toast('Не получилось поделиться');
-        }
-      } else if (a === 'save') {
-        close();
-        const url = await href;
-        if (!url) return toast('Не удалось получить фото с Диска');
-        if (!(await downloadViaTelegram(url, it.n))) openExternal(url);
-      }
-    });
+  // Оригинал в полном качестве: файл скачивает сам Telegram, поэтому браузер не открывается.
+  async function saveOriginal(it) {
+    let url = null;
+    try {
+      url = await disk.originalUrl(it);
+    } catch {}
+    if (!url) return toast('Не удалось получить фото с Диска');
+    if (!(await downloadViaTelegram(url, it.n))) openExternal(url);
   }
 
   function updateLoading() {
@@ -261,7 +236,13 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
       return r;
     };
     const head = Object.assign(document.createElement('div'), { className: 'v-info-date', textContent: fmtFull.format(d) });
-    q('.v-info').replaceChildren(head, row('v-info-row', it.n, fmtSize(it.s)), row('v-info-row muted', 'Папка', folder));
+    const orig = Object.assign(document.createElement('button'), { className: 'v-info-btn', textContent: 'Сохранить оригинал в Файлы' });
+    orig.addEventListener('click', () => {
+      haptic('light');
+      saveOriginal(it);
+    });
+    q('.v-info').replaceChildren(head, row('v-info-row', it.n, fmtSize(it.s)), row('v-info-row muted', 'Папка', folder), orig);
+    prepareShare(it);
     updateLoading();
   }
 
