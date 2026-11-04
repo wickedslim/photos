@@ -107,3 +107,16 @@ export function haptic(type = 'light') {
     else tg.HapticFeedback.impactOccurred(type);
   } catch {}
 }
+
+// Скачать файл средствами Telegram (Bot API 8.0+): Telegram сам загружает файл по ссылке
+// и предлагает сохранить его — без перехода в браузер. Возвращает false, если не поддерживается.
+export function downloadViaTelegram(url, fileName) {
+  if (!can('8.0') || !tg.downloadFile) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    try {
+      tg.downloadFile({ url, file_name: fileName }, () => resolve(true));
+    } catch {
+      resolve(false);
+    }
+  });
+}

@@ -302,3 +302,16 @@ input { font: inherit; color: inherit; }
   transition: width .15s ease, right .15s ease; }
 .scrubber.show { opacity: 1; pointer-events: auto; }
 .scrubber.drag i { width: 7px; right: 2px; }
+
+/* ── Меню действий снизу (как UIActionSheet на iPhone) ── */
+.asheet-wrap { position: fixed; inset: 0; z-index: 200000; background: rgba(0,0,0,.35); opacity: 0; transition: opacity .25s ease; }
+.asheet-wrap.open { opacity: 1; }
+.asheet { position: absolute; left: 8px; right: 8px; bottom: calc(var(--bottom-inset) + 8px); display: flex; flex-direction: column; gap: 8px;
+  transform: translateY(110%); transition: transform .3s cubic-bezier(.3,.9,.3,1); }
+.asheet-wrap.open .asheet { transform: none; }
+.asheet-group, .asheet-cancel { border-radius: 14px; overflow: hidden; background: var(--material-strong);
+  backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); }
+.asheet button { width: 100%; height: 57px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 20px; color: var(--tint); }
+.asheet-group button + button { box-shadow: inset 0 .5px 0 var(--sep); }
+.asheet-cancel { font-weight: 600; }
+.asheet button:active { background: rgba(127,127,127,.2); }

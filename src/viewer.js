@@ -3,7 +3,7 @@
 // соседние фото подгружаются заранее. Тап — спрятать/показать панели (фон становится чёрным).
 import PhotoSwipe from 'photoswipe';
 import 'photoswipe/style.css';
-import { pushBack, openExternal, haptic } from './tg.js';
+import { pushBack, openExternal, haptic, downloadViaTelegram } from './tg.js';
 import { isAbort } from './api.js';
 import { dayLabel } from './grid.js';
 
@@ -135,7 +135,7 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
     pswp.ui.registerElement({
       name: 'ios-bottom',
       appendTo: 'root',
-      html: `<button class="v-btn" data-act="share" aria-label="Открыть оригинал">${ICONS.share}</button>
+      html: `<button class="v-btn" data-act="share" aria-label="Поделиться">${ICONS.share}</button>
              <button class="v-btn v-heart" data-act="fav" aria-label="Избранное">${ICONS.heart}</button>
              <button class="v-btn" data-act="info" aria-label="Информация">${ICONS.info}</button>`,
       onInit: (elm) => {
@@ -152,13 +152,8 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
             pswp.element.classList.toggle('info-open', infoOpen);
             haptic('light');
           } else if (act === 'share') {
-            try {
-              const url = await disk.originalUrl(it);
-              if (url) openExternal(url);
-              else toast('Не удалось получить ссылку на оригинал');
-            } catch (err) {
-              toast(err.message);
-            }
+            haptic('light');
+            shareSheet(it);
           }
         });
       },
@@ -170,6 +165,73 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
       onInit: (elm) => elm.classList.add('v-info'),
     });
   });
+
+  // ── «Поделиться»: меню снизу, как на iPhone ──
+  // Поделиться — системное меню телефона с самим фото (JPEG до 1280 px: больше Яндекс без сервера не отдаёт).
+  // Сохранить — оригинал в полном качестве; его скачивает сам Telegram, поэтому браузер не открывается.
+  async function shareSheet(it) {
+    const canShareFiles = typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
+    const wrap = document.createElement('div');
+    wrap.className = 'asheet-wrap';
+    wrap.innerHTML = `
+      <div class="asheet">
+        <div class="asheet-group">
+          ${canShareFiles ? '<button data-a="share"><span>Поделиться</span><span class="spinner small" hidden></span></button>' : ''}
+          <button data-a="save">Сохранить на телефон</button>
+        </div>
+        <button class="asheet-cancel" data-a="cancel">Отмена</button>
+      </div>`;
+    document.body.append(wrap);
+    requestAnimationFrame(() => wrap.classList.add('open'));
+    let popBack = () => {};
+    const close = () => {
+      popBack();
+      wrap.classList.remove('open');
+      setTimeout(() => wrap.remove(), 250);
+    };
+    popBack = pushBack(close);
+
+    // Готовим файл заранее: системное меню «Поделиться» открывается только сразу после нажатия,
+    // ждать загрузку в этот момент нельзя.
+    let file = null;
+    const shareBtn = wrap.querySelector('[data-a="share"]');
+    if (shareBtn) {
+      shareBtn.querySelector('.spinner').hidden = false;
+      const job = bigs.load(it, BIG);
+      job.promise
+        .then((u) => fetch(u))
+        .then((r) => r.blob())
+        .then((b) => {
+          const name = it.n.replace(/\.[^.]+$/, '') + '.jpg';
+          const f = new File([b], name, { type: 'image/jpeg' });
+          if (navigator.canShare({ files: [f] })) file = f;
+          else shareBtn.remove();
+        })
+        .catch(() => shareBtn.remove())
+        .finally(() => shareBtn.isConnected && (shareBtn.querySelector('.spinner').hidden = true));
+    }
+    const href = disk.originalUrl(it).catch(() => null);
+
+    wrap.addEventListener('click', async (e) => {
+      const a = e.target.closest('[data-a]')?.dataset.a;
+      if (!a) return close(); // тап мимо меню
+      if (a === 'cancel') return close();
+      if (a === 'share') {
+        if (!file) return toast('Секунду, готовлю фото…');
+        close();
+        try {
+          await navigator.share({ files: [file] });
+        } catch (err) {
+          if (err?.name !== 'AbortError') toast('Не получилось поделиться');
+        }
+      } else if (a === 'save') {
+        close();
+        const url = await href;
+        if (!url) return toast('Не удалось получить фото с Диска');
+        if (!(await downloadViaTelegram(url, it.n))) openExternal(url);
+      }
+    });
+  }
 
   function updateLoading() {
     const it = items[pswp.currIndex];
