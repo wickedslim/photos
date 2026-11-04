@@ -249,7 +249,7 @@ export class Grid {
       'scroll',
       () => {
         if (this.el.scrollHeight < this.el.clientHeight * 2.5 || !this.el.offsetParent) return;
-        // Появляемся не сразу, а когда за одну прокрутку пролистали больше двух экранов.
+        // Появляемся не сразу, а когда за одну прокрутку пролистали больше одного экрана.
         const now = performance.now();
         const y = this.el.scrollTop;
         const delta = Math.abs(y - st.lastY);
@@ -262,7 +262,7 @@ export class Grid {
           return;
         }
         st.travel += delta;
-        if (!st.visible && !st.dragging && st.travel < this.el.clientHeight * 2) return;
+        if (!st.visible && !st.dragging && st.travel < this.el.clientHeight) return;
         place();
         show();
         // Лёгкий щелчок вибрацией на каждой новой строке, пока тащим ползунок.
