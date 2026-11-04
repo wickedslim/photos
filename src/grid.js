@@ -36,12 +36,17 @@ export class Grid {
     this.footer = el('div', 'grid-footer');
     this.el.append(this.inner, this.footer);
     this.el.addEventListener('scroll', () => this.schedule(), { passive: true });
-    new ResizeObserver(() => {
+    const relayout = () => {
       if (!this.items.length) return;
       const anchor = this.anchor();
       this.layout();
       this.restore(anchor);
-    }).observe(this.el);
+    };
+    new ResizeObserver(relayout).observe(this.el);
+    // Отступ сверху зависит от выреза экрана и кнопок Telegram — когда они меняются, пересчитываем сетку.
+    window.addEventListener('insetschange', () => {
+      if (this.padTop() !== this.top) relayout();
+    });
     this.inner.addEventListener('click', (e) => {
       const t = e.target.closest('.tile');
       if (t) this.onOpen(Number(t.dataset.i));

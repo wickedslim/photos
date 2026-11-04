@@ -12,14 +12,52 @@ export function initTelegram() {
   // Телефон сам перешёл в ночной режим (по расписанию или вручную) — перекрашиваемся на лету.
   darkQuery.addEventListener('change', applyTheme);
   if (!inTelegram) return;
+  setupInsets();
   tg.ready();
   tg.expand();
   if (can('7.7')) tg.disableVerticalSwipes();
-  // На телефонах — полноэкранный режим, как у нативного приложения.
-  if (can('8.0') && ['ios', 'android'].includes(tg.platform)) {
+  // На телефонах — полноэкранный режим, как у нативного приложения (если Telegram ещё не открыл так сам).
+  if (can('8.0') && ['ios', 'android'].includes(tg.platform) && !tg.isFullscreen) {
     try { tg.requestFullscreen(); } catch {}
   }
   tg.onEvent('themeChanged', applyTheme);
+}
+
+// Отступы сверху/снизу (вырез экрана и кнопки Telegram) приходят от Telegram не сразу, а через мгновение
+// после запуска — без мер интерфейс сначала рисуется впритык к краю, а потом «прыгает» вниз.
+// Поэтому на время запуска подставляем отступы, запомненные с прошлого раза.
+function setupInsets() {
+  const root = document.documentElement.style;
+  let cached = null;
+  try {
+    cached = JSON.parse(localStorage.getItem('tg-insets'));
+  } catch {}
+  if (cached) {
+    root.setProperty('--boot-top', cached.top + 'px');
+    root.setProperty('--boot-bottom', cached.bottom + 'px');
+  }
+  const got = new Set();
+  const finish = () => {
+    if (!root.getPropertyValue('--boot-top')) return;
+    root.removeProperty('--boot-top');
+    root.removeProperty('--boot-bottom');
+    window.dispatchEvent(new Event('insetschange'));
+  };
+  const timer = setTimeout(finish, 1500);
+  const onChange = (name) => () => {
+    got.add(name);
+    const s = tg.safeAreaInset || {};
+    const c = tg.contentSafeAreaInset || {};
+    const v = { top: (s.top || 0) + (c.top || 0), bottom: Math.max(s.bottom || 0, c.bottom || 0) };
+    if (got.size === 2) {
+      clearTimeout(timer);
+      finish();
+      localStorage.setItem('tg-insets', JSON.stringify(v));
+    }
+    window.dispatchEvent(new Event('insetschange'));
+  };
+  tg.onEvent('safeAreaChanged', onChange('safe'));
+  tg.onEvent('contentSafeAreaChanged', onChange('content'));
 }
 
 export function isDark() {

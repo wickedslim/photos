@@ -1,7 +1,8 @@
 :root {
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
-  --top-inset: calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px));
-  --bottom-inset: max(var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  /* --boot-*: отступы с прошлого запуска, пока Telegram не прислал настоящие (см. tg.js) */
+  --top-inset: max(calc(max(var(--tg-safe-area-inset-top, 0px), env(safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px)), var(--boot-top, 0px));
+  --bottom-inset: max(var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px), var(--boot-bottom, 0px));
   --tabbar-h: 50px;
   --bottom-ui: calc(var(--bottom-inset) + var(--tabbar-h));
   --tint: #007aff;

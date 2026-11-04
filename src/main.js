@@ -17,23 +17,30 @@ const NS = 'real'; // пространство имён локальных да�
 const app = document.getElementById('app');
 
 initTelegram();
-checkForUpdate();
+const updating = checkForUpdate();
 boot();
 
 // Вышла новая версия, а Telegram показал старую из кэша — один раз перезагружаемся на свежую.
 // Адрес с ?v=<номер> не совпадает с закэшированным, поэтому страница точно придёт заново.
+// Проверка идёт параллельно с запуском, а рисовать интерфейс начинаем только после неё
+// (но ждём не дольше 1,5 с) — так перезагрузка случается до того, как что-то появилось на экране.
 async function checkForUpdate() {
-  if (import.meta.env.DEV) return;
+  if (import.meta.env.DEV) return false;
   try {
     const res = await fetch('version.json', { cache: 'no-store' });
     const { build } = await res.json();
-    if (!build || build === __BUILD_ID__) return;
+    if (!build || build === __BUILD_ID__) return false;
     const url = new URL(location.href);
-    if (url.searchParams.get('v') === build) return; // уже пробовали — не зацикливаемся
+    if (url.searchParams.get('v') === build) return false; // уже пробовали — не зацикливаемся
     url.searchParams.set('v', build);
     location.replace(url.toString());
-  } catch {}
+    return true;
+  } catch {
+    return false;
+  }
 }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const reloading = () => Promise.race([updating, sleep(1500).then(() => false)]);
 
 async function boot(message) {
   // Вернулись со страницы входа Яндекса?
@@ -51,6 +58,7 @@ async function boot(message) {
     }
   }
   const token = await storage.get('ya_token');
+  if (await reloading()) return;
   app.textContent = '';
   if (!token) return showSetup(app, { onDone: () => boot(), message });
   startLibrary(new YaDisk(token));
