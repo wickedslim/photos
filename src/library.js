@@ -153,6 +153,7 @@ export class Library {
 
     this.grid = new Grid(this.views.all, {
       loader,
+      scrubBottom: 56, // над переключателем «Годы / Месяцы / Все фото»
       onOpen: (i) => onOpen(this.items, i, this.grid),
       onScrollInfo: (item, cols) => {
         if (this.view !== 'all' || !item) return;

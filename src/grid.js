@@ -24,7 +24,7 @@ export function el(tag, cls, html) {
 
 // ── Сетка «Все фото» ────────────────────────────────────────────────
 export class Grid {
-  constructor(scroller, { loader, onOpen, onScrollInfo }) {
+  constructor(scroller, { loader, onOpen, onScrollInfo, scrubBottom = 0 }) {
     this.el = scroller;
     this.loader = loader;
     this.onOpen = onOpen;
@@ -47,6 +47,8 @@ export class Grid {
       if (t) this.onOpen(Number(t.dataset.i));
     });
     this.setupPinch();
+    this.scrubBottom = scrubBottom;
+    this.setupScrubber();
   }
 
   get size() {
@@ -205,6 +207,117 @@ export class Grid {
     t.job?.cancel();
     t.el.remove();
     this.tiles.delete(i);
+  }
+
+  // ── Ползунок быстрой прокрутки, как в «Фото» на iPhone ──
+  // Появляется у правого края, когда листаешь быстро; его можно схватить и перетащить,
+  // рядом показывается месяц и год. Через секунду без движения прячется.
+  setupScrubber() {
+    const host = this.el.parentElement;
+    const thumb = el(
+      'div',
+      'scrubber',
+      '<svg viewBox="0 0 12 22" width="10" height="18"><path d="M2 8l4-4 4 4M2 14l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    );
+    const label = el('div', 'scrub-label');
+    host.append(label, thumb);
+    this.scrub = { thumb, label, dragging: false, visible: false, hideT: 0, lastY: 0, lastT: 0, month: '' };
+    const THUMB_H = 44;
+
+    const track = () => {
+      const tabbar = document.querySelector('.tabbar');
+      const top = this.top + 6;
+      const bottom = this.el.clientHeight - (tabbar ? tabbar.offsetHeight : 0) - this.scrubBottom - 8;
+      return { top, h: Math.max(1, bottom - top - THUMB_H) };
+    };
+    const maxScroll = () => Math.max(1, this.el.scrollHeight - this.el.clientHeight);
+    const monthAt = () => {
+      const a = this.anchor();
+      const it = this.items[a.index];
+      if (!it) return '';
+      const d = new Date(it.t);
+      return `${monthLabel(d.getFullYear(), d.getMonth())} ${d.getFullYear()}`;
+    };
+    const place = () => {
+      const t = track();
+      const y = t.top + (this.el.scrollTop / maxScroll()) * t.h;
+      thumb.style.transform = `translateY(${y}px)`;
+      label.style.transform = `translateY(${y + THUMB_H / 2}px) translateY(-50%)`;
+      if (this.scrub.dragging) {
+        const m = monthAt();
+        if (m !== this.scrub.month) {
+          if (this.scrub.month) haptic('select');
+          this.scrub.month = m;
+          label.textContent = m;
+        }
+      }
+    };
+    const show = () => {
+      clearTimeout(this.scrub.hideT);
+      if (!this.scrub.visible) {
+        this.scrub.visible = true;
+        thumb.classList.add('show');
+      }
+      if (!this.scrub.dragging) this.scrub.hideT = setTimeout(hide, 1300);
+    };
+    const hide = () => {
+      if (this.scrub.dragging) return;
+      this.scrub.visible = false;
+      thumb.classList.remove('show');
+    };
+    this.scrubPlace = place;
+
+    // Показываем только на длинных лентах и только при быстрой прокрутке.
+    this.el.addEventListener(
+      'scroll',
+      () => {
+        const now = performance.now();
+        const y = this.el.scrollTop;
+        const v = Math.abs(y - this.scrub.lastY) / Math.max(1, now - this.scrub.lastT);
+        this.scrub.lastY = y;
+        this.scrub.lastT = now;
+        if (this.scrub.visible || this.scrub.dragging) {
+          place();
+          if (!this.scrub.dragging) show();
+        } else if (v > 1.2 && this.el.scrollHeight > this.el.clientHeight * 4 && this.el.offsetParent) {
+          place();
+          show();
+        }
+      },
+      { passive: true },
+    );
+
+    let grab = 0;
+    thumb.addEventListener('pointerdown', (e) => {
+      if (!this.scrub.visible) return;
+      e.preventDefault();
+      thumb.setPointerCapture(e.pointerId);
+      const t = track();
+      grab = e.clientY - this.el.getBoundingClientRect().top - (t.top + (this.el.scrollTop / maxScroll()) * t.h);
+      this.scrub.dragging = true;
+      this.scrub.month = '';
+      clearTimeout(this.scrub.hideT);
+      thumb.classList.add('drag');
+      label.classList.add('show');
+      haptic('light');
+      place();
+    });
+    thumb.addEventListener('pointermove', (e) => {
+      if (!this.scrub.dragging) return;
+      const t = track();
+      const y = e.clientY - this.el.getBoundingClientRect().top - grab;
+      const f = Math.min(1, Math.max(0, (y - t.top) / t.h));
+      this.el.scrollTop = f * maxScroll();
+    });
+    const end = () => {
+      if (!this.scrub.dragging) return;
+      this.scrub.dragging = false;
+      thumb.classList.remove('drag');
+      label.classList.remove('show');
+      show();
+    };
+    thumb.addEventListener('pointerup', end);
+    thumb.addEventListener('pointercancel', end);
   }
 
   setCols(cols, clientY) {

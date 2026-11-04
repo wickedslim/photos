@@ -101,5 +101,9 @@ export function pushBack(handler) {
 }
 
 export function haptic(type = 'light') {
-  if (can('6.1')) try { tg.HapticFeedback.impactOccurred(type); } catch {}
+  if (!can('6.1')) return;
+  try {
+    if (type === 'select') tg.HapticFeedback.selectionChanged();
+    else tg.HapticFeedback.impactOccurred(type);
+  } catch {}
 }
