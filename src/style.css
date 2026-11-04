@@ -293,16 +293,11 @@ input { font: inherit; color: inherit; }
 .alert-btns button + button { border-left: .5px solid var(--sep); }
 .alert-btns .bold { font-weight: 600; }
 
-/* ── Ползунок быстрой прокрутки ── */
-.scrubber { position: absolute; top: 0; right: 0; z-index: 8; width: 40px; height: 44px; display: flex; align-items: center; justify-content: center;
-  border-radius: 22px 0 0 22px; background: var(--material-strong); color: var(--muted); box-shadow: 0 2px 10px rgba(0,0,0,.18);
-  backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
-  touch-action: none; opacity: 0; pointer-events: none; translate: 12px 0; transition: opacity .2s ease, translate .2s ease; }
-.scrubber.show { opacity: 1; pointer-events: auto; translate: 0 0; }
-.scrubber.drag { color: var(--tint); }
-.scrubber::before { content: ''; position: absolute; inset: -10px -4px -10px -16px; } /* палец промахнулся — всё равно хватаем */
-.scrub-label { position: absolute; top: 0; right: 52px; z-index: 8; padding: 7px 14px; border-radius: 16px; font-size: 15px; font-weight: 600; white-space: nowrap;
-  background: var(--material-strong); color: var(--text); box-shadow: 0 2px 12px rgba(0,0,0,.18);
-  backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
-  opacity: 0; pointer-events: none; transition: opacity .15s ease; }
-.scrub-label.show { opacity: 1; }
+/* ── Ползунок прокрутки (как в «Фото» на iPhone): тонкая капсула у правого края ── */
+.scrubber { position: absolute; top: 0; right: 0; z-index: 8; width: 28px; height: 64px; touch-action: none;
+  opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+.scrubber i { position: absolute; top: 0; bottom: 0; right: 3px; width: 5px; border-radius: 3px;
+  background: rgba(255, 255, 255, .78); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .12), 0 1px 4px rgba(0, 0, 0, .25);
+  transition: width .15s ease, right .15s ease; }
+.scrubber.show { opacity: 1; pointer-events: auto; }
+.scrubber.drag i { width: 7px; right: 2px; }

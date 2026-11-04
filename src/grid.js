@@ -209,115 +209,87 @@ export class Grid {
     this.tiles.delete(i);
   }
 
-  // ── Ползунок быстрой прокрутки, как в «Фото» на iPhone ──
-  // Появляется у правого края, когда листаешь быстро; его можно схватить и перетащить,
-  // рядом показывается месяц и год. Через секунду без движения прячется.
+  // ── Ползунок прокрутки, как в «Фото» на iPhone ──
+  // Тонкая полупрозрачная капсула у правого края: появляется при прокрутке, её можно схватить
+  // и быстро протащить через всю ленту. Дата меняется в заголовке. Через секунду без движения прячется.
   setupScrubber() {
     const host = this.el.parentElement;
-    const thumb = el(
-      'div',
-      'scrubber',
-      '<svg viewBox="0 0 12 22" width="10" height="18"><path d="M2 8l4-4 4 4M2 14l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    );
-    const label = el('div', 'scrub-label');
-    host.append(label, thumb);
-    this.scrub = { thumb, label, dragging: false, visible: false, hideT: 0, lastY: 0, lastT: 0, month: '' };
-    const THUMB_H = 44;
+    const bar = el('div', 'scrubber', '<i></i>');
+    host.append(bar);
+    const BAR_H = 64;
+    const st = { dragging: false, visible: false, hideT: 0, row: -1 };
+    this.scrub = st;
 
     const track = () => {
       const tabbar = document.querySelector('.tabbar');
-      const top = this.top + 6;
-      const bottom = this.el.clientHeight - (tabbar ? tabbar.offsetHeight : 0) - this.scrubBottom - 8;
-      return { top, h: Math.max(1, bottom - top - THUMB_H) };
+      const top = this.top + 4;
+      const bottom = this.el.clientHeight - (tabbar ? tabbar.offsetHeight : 0) - this.scrubBottom - 6;
+      return { top, h: Math.max(1, bottom - top - BAR_H) };
     };
     const maxScroll = () => Math.max(1, this.el.scrollHeight - this.el.clientHeight);
-    const monthAt = () => {
-      const a = this.anchor();
-      const it = this.items[a.index];
-      if (!it) return '';
-      const d = new Date(it.t);
-      return `${monthLabel(d.getFullYear(), d.getMonth())} ${d.getFullYear()}`;
-    };
     const place = () => {
       const t = track();
-      const y = t.top + (this.el.scrollTop / maxScroll()) * t.h;
-      thumb.style.transform = `translateY(${y}px)`;
-      label.style.transform = `translateY(${y + THUMB_H / 2}px) translateY(-50%)`;
-      if (this.scrub.dragging) {
-        const m = monthAt();
-        if (m !== this.scrub.month) {
-          if (this.scrub.month) haptic('select');
-          this.scrub.month = m;
-          label.textContent = m;
-        }
-      }
-    };
-    const show = () => {
-      clearTimeout(this.scrub.hideT);
-      if (!this.scrub.visible) {
-        this.scrub.visible = true;
-        thumb.classList.add('show');
-      }
-      if (!this.scrub.dragging) this.scrub.hideT = setTimeout(hide, 1300);
+      bar.style.transform = `translateY(${t.top + (this.el.scrollTop / maxScroll()) * t.h}px)`;
     };
     const hide = () => {
-      if (this.scrub.dragging) return;
-      this.scrub.visible = false;
-      thumb.classList.remove('show');
+      if (st.dragging) return;
+      st.visible = false;
+      bar.classList.remove('show');
     };
-    this.scrubPlace = place;
+    const show = () => {
+      clearTimeout(st.hideT);
+      if (!st.visible) {
+        st.visible = true;
+        bar.classList.add('show');
+      }
+      if (!st.dragging) st.hideT = setTimeout(hide, 1200);
+    };
 
-    // Показываем только на длинных лентах и только при быстрой прокрутке.
     this.el.addEventListener(
       'scroll',
       () => {
-        const now = performance.now();
-        const y = this.el.scrollTop;
-        const v = Math.abs(y - this.scrub.lastY) / Math.max(1, now - this.scrub.lastT);
-        this.scrub.lastY = y;
-        this.scrub.lastT = now;
-        if (this.scrub.visible || this.scrub.dragging) {
-          place();
-          if (!this.scrub.dragging) show();
-        } else if (v > 1.2 && this.el.scrollHeight > this.el.clientHeight * 4 && this.el.offsetParent) {
-          place();
-          show();
+        if (this.el.scrollHeight < this.el.clientHeight * 2.5 || !this.el.offsetParent) return;
+        place();
+        show();
+        // Лёгкий щелчок вибрацией на каждой новой строке, пока тащим ползунок.
+        if (st.dragging) {
+          const row = Math.floor(this.el.scrollTop / (this.rowH * 6));
+          if (row !== st.row) {
+            if (st.row !== -1) haptic('select');
+            st.row = row;
+          }
         }
       },
       { passive: true },
     );
 
     let grab = 0;
-    thumb.addEventListener('pointerdown', (e) => {
-      if (!this.scrub.visible) return;
+    bar.addEventListener('pointerdown', (e) => {
+      if (!st.visible) return;
       e.preventDefault();
-      thumb.setPointerCapture(e.pointerId);
+      bar.setPointerCapture(e.pointerId);
       const t = track();
       grab = e.clientY - this.el.getBoundingClientRect().top - (t.top + (this.el.scrollTop / maxScroll()) * t.h);
-      this.scrub.dragging = true;
-      this.scrub.month = '';
-      clearTimeout(this.scrub.hideT);
-      thumb.classList.add('drag');
-      label.classList.add('show');
+      st.dragging = true;
+      st.row = -1;
+      clearTimeout(st.hideT);
+      bar.classList.add('drag');
       haptic('light');
-      place();
     });
-    thumb.addEventListener('pointermove', (e) => {
-      if (!this.scrub.dragging) return;
+    bar.addEventListener('pointermove', (e) => {
+      if (!st.dragging) return;
       const t = track();
       const y = e.clientY - this.el.getBoundingClientRect().top - grab;
-      const f = Math.min(1, Math.max(0, (y - t.top) / t.h));
-      this.el.scrollTop = f * maxScroll();
+      this.el.scrollTop = Math.min(1, Math.max(0, (y - t.top) / t.h)) * maxScroll();
     });
     const end = () => {
-      if (!this.scrub.dragging) return;
-      this.scrub.dragging = false;
-      thumb.classList.remove('drag');
-      label.classList.remove('show');
+      if (!st.dragging) return;
+      st.dragging = false;
+      bar.classList.remove('drag');
       show();
     };
-    thumb.addEventListener('pointerup', end);
-    thumb.addEventListener('pointercancel', end);
+    bar.addEventListener('pointerup', end);
+    bar.addEventListener('pointercancel', end);
   }
 
   setCols(cols, clientY) {
