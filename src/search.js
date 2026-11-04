@@ -12,9 +12,10 @@ const textOf = (it) => {
   return t;
 };
 
-// Разбираем запрос на условия. Все условия должны выполняться (И).
+// Разбираем запрос: условия по дате (tests) и обычные слова (words).
 export function parseQuery(q) {
   const tests = [];
+  const words = [];
   const tokens = norm(q).split(/[\s,]+/).filter(Boolean);
   for (const tok of tokens) {
     // 12.05.2024, 12.05, 2024-05-12, 2024-05
@@ -51,39 +52,39 @@ export function parseQuery(q) {
         continue;
       }
     }
-    tests.push((dt, it) => textOf(it).includes(tok));
+    words.push(tok);
   }
-  return tests;
+  return { tests, words };
 }
 
-export function searchItems(items, q) {
-  const tests = parseQuery(q);
-  if (!tests.length) return [];
-  const out = [];
-  for (const it of items) {
-    const dt = new Date(it.t);
-    if (tests.every((t) => t(dt, it))) out.push(it);
-  }
-  return out;
-}
+const byDate = (items, tests) =>
+  tests.length
+    ? items.filter((it) => {
+        const dt = new Date(it.t);
+        return tests.every((t) => t(dt, it));
+      })
+    : items;
 
 export class Search {
-  constructor(root, { loader, onOpen }) {
+  constructor(root, { loader, onOpen, indexer }) {
     this.items = [];
+    this.indexer = indexer;
+    this.seq = 0;
     this.root = el('div', 'search-view');
     this.root.innerHTML = `
       <div class="view results scroller"></div>
       <div class="view suggest scroller"></div>
       <div class="search-empty" hidden>
         <div class="search-empty-title">Ничего не найдено</div>
-        <div>Поиск понимает дату, месяц, год, время года, название папки и имя файла — например «июль 2024», «лето», «12.05», «отпуск».</div>
-        <div class="muted">Поиск по тому, что изображено на фото («город», «море», «кошка»), пока не поддерживается.</div>
+        <div>Поиск понимает дату, месяц, год, время года, название папки, имя файла, имена людей и то, что изображено на фото.</div>
+        <div class="muted search-empty-ml"></div>
+        <button class="big-btn" data-ml="enable" hidden>Включить умный поиск</button>
       </div>
       <header class="search-head">
         <div class="large-title">Поиск</div>
         <label class="search-field">
           <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-          <input type="search" placeholder="Дата, месяц, год, папка, имя файла" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <input type="search" placeholder="Море, кот, июль 2024, имя…" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false">
           <button class="clear" aria-label="Очистить" hidden>
             <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="m8.5 8.5 7 7m0-7-7 7" stroke="var(--bg)" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
@@ -113,6 +114,13 @@ export class Search {
     });
     // Прокрутка результатов прячет клавиатуру, как в iOS.
     this.resultsEl.addEventListener('touchstart', () => this.input.blur(), { passive: true });
+    this.emptyEl.querySelector('[data-ml]').addEventListener('click', () => {
+      indexer.enable();
+      this.run(true);
+    });
+    indexer.addEventListener('progress', () => {
+      if (this.waitingModel) this.count.textContent = this.modelText();
+    });
     this.run();
   }
 
@@ -127,7 +135,12 @@ export class Search {
     this.run(true);
   }
 
-  run(keepScroll = false) {
+  modelText() {
+    const m = this.indexer.models.text;
+    return m < 1 ? `Загружаю модель поиска по смыслу… ${Math.round(m * 100)}%` : 'Ищу по содержимому…';
+  }
+
+  async run(keepScroll = false) {
     const query = this.input.value.trim();
     this.clearBtn.hidden = !query;
     const has = Boolean(query);
@@ -136,14 +149,65 @@ export class Search {
     if (!has) {
       this.emptyEl.hidden = true;
       this.count.textContent = '';
+      this.lastQuery = '';
       return;
     }
     if (query === this.lastQuery && keepScroll !== true) return;
     this.lastQuery = query;
-    this.results = searchItems(this.items, query);
-    this.count.textContent = this.results.length ? `Найдено: ${photosCount(this.results.length)}` : '';
-    this.emptyEl.hidden = this.results.length > 0;
-    this.grid.setItems(this.results, { reset: keepScroll !== true });
+    const my = ++this.seq;
+    const ix = this.indexer;
+    const { tests, words } = parseQuery(query);
+    const base = byDate(this.items, tests);
+    let results = base;
+    let mode = 'plain';
+    if (words.length) {
+      // 1) имя файла / папки, 2) имя человека, 3) смысл картинки
+      const byName = base.filter((it) => words.every((w) => textOf(it).includes(w)));
+      const person = byName.length ? null : ix.findPerson(words.join(' '));
+      if (byName.length) results = byName;
+      else if (person) {
+        const set = new Set(person.items.map((it) => it.p));
+        results = base.filter((it) => set.has(it.p));
+        mode = 'person';
+      } else if (ix.enabled && ix.indexedCount) {
+        mode = 'smart';
+        this.waitingModel = true;
+        this.count.textContent = this.modelText();
+        this.emptyEl.hidden = true;
+        try {
+          results = await ix.semantic(words.join(' '), base);
+        } catch (e) {
+          results = [];
+          this.smartError = e.message;
+        }
+        this.waitingModel = false;
+      } else {
+        results = [];
+        mode = 'none';
+      }
+    }
+    if (my !== this.seq) return;
+    this.results = results;
+    const n = results.length;
+    let label = n ? `Найдено: ${photosCount(n)}` : '';
+    if (n && mode === 'smart') {
+      label = `По содержимому: ${photosCount(n)}`;
+      if (ix.done < ix.total) label += ` · проанализировано ${ix.done.toLocaleString('ru')} из ${ix.total.toLocaleString('ru')}`;
+    }
+    if (n && mode === 'person') label = `${photosCount(n)} с этим человеком`;
+    this.count.textContent = label;
+    this.emptyEl.hidden = n > 0;
+    if (!n) {
+      const mlBtn = this.emptyEl.querySelector('[data-ml]');
+      const mlText = this.emptyEl.querySelector('.search-empty-ml');
+      mlBtn.hidden = ix.enabled;
+      mlText.textContent = !ix.enabled
+        ? 'Чтобы искать по содержимому («море», «кошка», «торт»), включите умный поиск: фото проанализируются прямо на телефоне.'
+        : ix.indexedCount < ix.total
+          ? `Фото ещё анализируются: ${ix.done.toLocaleString('ru')} из ${ix.total.toLocaleString('ru')}. Попробуйте позже.`
+          : '';
+    }
+    this.grid.setItems(results, { reset: keepScroll !== true });
   }
 
   renderSuggest() {
@@ -173,7 +237,7 @@ export class Search {
         ${topFolders.length ? `<div class="group-title">Папки</div><div class="group">${topFolders
           .map(([f, n]) => `<button class="row" data-q="${esc(f.split('/').pop())}"><span>${esc(f)}</span><span class="muted">${n.toLocaleString('ru')}</span></button>`)
           .join('')}</div>` : ''}
-        <div class="group-foot">Можно сочетать: «июль 2024», «12.05», «лето сочи», «IMG_45».</div>
+        <div class="group-foot">Можно сочетать: «море 2024», «июль», «12.05», «лето сочи», имя человека, «IMG_45».</div>
       </div>`;
   }
 }

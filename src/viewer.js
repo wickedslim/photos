@@ -155,7 +155,7 @@ export function openViewer({ items, index, thumbs, bigs, disk, host, favorites, 
             try {
               const url = await disk.originalUrl(it);
               if (url) openExternal(url);
-              else toast('В демо-режиме оригиналов нет');
+              else toast('Не удалось получить ссылку на оригинал');
             } catch (err) {
               toast(err.message);
             }

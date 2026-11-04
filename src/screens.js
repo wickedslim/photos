@@ -4,6 +4,7 @@ import { storage, openExternal, pushBack } from './tg.js';
 import { YaDisk, AuthError } from './api.js';
 import { storageUsage } from './store.js';
 import { photosCount } from './grid.js';
+import { startLogin, manualLoginUrl } from './auth.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -31,40 +32,61 @@ export async function showSetup(root, { onDone, message }) {
   root.innerHTML = `
     <div class="setup scroller">
       <div class="setup-hero">
-        <div class="app-icon"><svg viewBox="0 0 64 64" width="64" height="64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffcc00"/><stop offset=".5" stop-color="#ff5e3a"/><stop offset="1" stop-color="#c644fc"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#g)"/><circle cx="32" cy="32" r="13" fill="none" stroke="#fff" stroke-width="5"/></svg></div>
+        <div class="app-icon"><svg viewBox="0 0 64 64" width="72" height="72"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffcc00"/><stop offset=".5" stop-color="#ff5e3a"/><stop offset="1" stop-color="#c644fc"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#g)"/><circle cx="32" cy="32" r="13" fill="none" stroke="#fff" stroke-width="5"/></svg></div>
         <h1>Фото с Яндекс Диска</h1>
-        <p>Ваши фото в привычной галерее прямо в Telegram. Доступ только на чтение.</p>
+        <p>Все ваши снимки в удобной галерее прямо в Telegram</p>
       </div>
       ${message ? `<div class="notice">${esc(message)}</div>` : ''}
-      <div class="group-title">Шаг 1. Получите токен</div>
-      <div class="group">
-        <label class="row input-row" ${YANDEX_CLIENT_ID ? 'hidden' : ''}>
-          <span>ClientID</span>
-          <input id="clientId" placeholder="из oauth.yandex.ru" value="${esc(savedClientId)}" autocomplete="off" autocapitalize="off" spellcheck="false">
-        </label>
-        <button class="row link" id="getToken">Войти в Яндекс и получить токен</button>
+      <ul class="promises">
+        <li><span>👀</span><div><b>Только просмотр</b><br>Приложение ничего не удаляет и не меняет на Диске</div></li>
+        <li><span>🔒</span><div><b>Фото остаются вашими</b><br>Они идут с Яндекса прямо на ваш телефон и никуда больше</div></li>
+        <li><span>⚡</span><div><b>Вход один раз</b><br>Telegram запомнит подключение на всех ваших устройствах</div></li>
+      </ul>
+      <button class="big-btn" id="login">Войти через Яндекс</button>
+      <div class="setup-hint">Откроется страница Яндекса — войдите и нажмите «Разрешить». Потом вы сразу вернётесь сюда.</div>
+      <button class="text-btn small" id="more">Другой способ входа</button>
+      <div class="manual" hidden>
+        <div class="group-title">Вход по токену</div>
+        <div class="group">
+          <label class="row input-row" ${YANDEX_CLIENT_ID ? 'hidden' : ''}>
+            <span>ClientID</span>
+            <input id="clientId" placeholder="из oauth.yandex.ru" value="${esc(savedClientId)}" autocomplete="off" autocapitalize="off" spellcheck="false">
+          </label>
+          <button class="row link" id="getToken">Получить токен на странице Яндекса</button>
+          <label class="row input-row">
+            <input id="token" placeholder="Вставьте токен" autocomplete="off" autocapitalize="off" spellcheck="false">
+          </label>
+        </div>
+        <button class="big-btn secondary" id="connect">Подключить</button>
       </div>
-      <div class="group-foot">Откроется страница Яндекса. После входа скопируйте показанный токен и вернитесь сюда.</div>
-      <div class="group-title">Шаг 2. Вставьте токен</div>
-      <div class="group">
-        <label class="row input-row">
-          <input id="token" placeholder="y0_AgAAAA…" autocomplete="off" autocapitalize="off" spellcheck="false">
-        </label>
-      </div>
-      <button class="big-btn" id="connect">Подключить</button>
-      <button class="text-btn" id="demo">Посмотреть демо без Яндекса</button>
     </div>`;
   const q = (s) => root.querySelector(s);
+  const clientId = () => YANDEX_CLIENT_ID || q('#clientId').value.trim();
+  const needClientId = () => {
+    q('.manual').hidden = false;
+    toast('Укажите ClientID приложения');
+    q('#clientId').focus();
+  };
+
+  q('#login').addEventListener('click', async () => {
+    const id = clientId();
+    if (!id) return needClientId();
+    if (!YANDEX_CLIENT_ID) await storage.set('ya_client_id', id);
+    q('#login').disabled = true;
+    q('#login').textContent = 'Открываю Яндекс…';
+    startLogin(id);
+  });
+
+  q('#more').addEventListener('click', () => {
+    q('.manual').hidden = !q('.manual').hidden;
+    if (!q('.manual').hidden) q('.manual').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   q('#getToken').addEventListener('click', async () => {
-    const id = YANDEX_CLIENT_ID || q('#clientId').value.trim();
-    if (!id) {
-      toast('Сначала укажите ClientID приложения');
-      q('#clientId').focus();
-      return;
-    }
+    const id = clientId();
+    if (!id) return needClientId();
     if (!YANDEX_CLIENT_ID) await storage.set('ya_client_id', id);
-    openExternal(`https://oauth.yandex.ru/authorize?response_type=token&client_id=${encodeURIComponent(id)}`);
+    openExternal(manualLoginUrl(id));
   });
 
   q('#connect').addEventListener('click', async () => {
@@ -76,7 +98,6 @@ export async function showSetup(root, { onDone, message }) {
     try {
       const me = await new YaDisk(token).me();
       await storage.set('ya_token', token);
-      await storage.remove('demo');
       toast(me.name ? `Подключено: ${me.name}` : 'Подключено');
       onDone();
     } catch (e) {
@@ -86,15 +107,46 @@ export async function showSetup(root, { onDone, message }) {
     }
   });
 
-  q('#demo').addEventListener('click', async () => {
-    await storage.set('demo', '1');
-    onDone();
+}
+
+// Окошко с полем ввода в стиле iOS (window.prompt в Telegram работает не везде).
+export function askText({ title, message = '', value = '', placeholder = '', ok = 'Готово' }) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'alert-wrap';
+    wrap.innerHTML = `
+      <div class="alert">
+        <div class="alert-title">${esc(title)}</div>
+        ${message ? `<div class="alert-msg">${esc(message)}</div>` : ''}
+        <input class="alert-input" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" enterkeyhint="done">
+        <div class="alert-btns"><button data-r="cancel">Отмена</button><button data-r="ok" class="bold">${esc(ok)}</button></div>
+      </div>`;
+    document.body.append(wrap);
+    const input = wrap.querySelector('input');
+    requestAnimationFrame(() => {
+      wrap.classList.add('open');
+      input.focus();
+      input.select();
+    });
+    let popBack = () => {};
+    const done = (v) => {
+      popBack();
+      wrap.classList.remove('open');
+      setTimeout(() => wrap.remove(), 200);
+      resolve(v);
+    };
+    popBack = pushBack(() => done(null));
+    wrap.addEventListener('click', (e) => {
+      const r = e.target.closest('[data-r]')?.dataset.r;
+      if (r) done(r === 'ok' ? input.value : null);
+    });
+    input.addEventListener('keydown', (e) => e.key === 'Enter' && done(input.value));
   });
 }
 
 const fmtBytes = (b) => (b > 1e9 ? `${(b / 1e9).toFixed(1)} ГБ` : `${Math.round(b / 1e6)} МБ`);
 
-export async function showSettings({ disk, count, folder, onFolder, onReindex, onClearCache, onLogout }) {
+export async function showSettings({ disk, count, folder, indexer, onFolder, onReindex, onClearCache, onLogout }) {
   const sheet = document.createElement('div');
   sheet.className = 'sheet-wrap';
   sheet.innerHTML = `
@@ -114,8 +166,14 @@ export async function showSettings({ disk, count, folder, onFolder, onReindex, o
         <button class="row link" id="reindex">Обновить список фото</button>
         <button class="row link" id="clear">Очистить кэш миниатюр <span class="muted" id="usage"></span></button>
       </div>
+      <div class="group-title">Люди и умный поиск</div>
       <div class="group">
-        <button class="row link danger" id="logout">${disk.kind === 'demo' ? 'Выйти из демо-режима' : 'Отключить Яндекс Диск'}</button>
+        <div class="row"><span>Анализ фото</span><span class="muted">${indexer.enabled ? `${indexer.done.toLocaleString('ru')} из ${indexer.total.toLocaleString('ru')}` : 'выключен'}</span></div>
+        <button class="row link ${indexer.enabled ? 'danger' : ''}" id="ml">${indexer.enabled ? 'Выключить и удалить результаты анализа' : 'Включить'}</button>
+      </div>
+      <div class="group-foot">Лица и содержимое фото анализируются только на этом устройстве. Имена людей тоже хранятся здесь.</div>
+      <div class="group">
+        <button class="row link danger" id="logout">Отключить Яндекс Диск</button>
       </div>
     </div>`;
   document.body.append(sheet);
@@ -143,6 +201,16 @@ export async function showSettings({ disk, count, folder, onFolder, onReindex, o
     await onClearCache();
     q('#usage').textContent = fmtBytes(await storageUsage());
     toast('Кэш очищен');
+  });
+  q('#ml').addEventListener('click', async () => {
+    if (indexer.enabled) {
+      await indexer.disable();
+      toast('Анализ выключен, данные удалены');
+    } else {
+      indexer.enable();
+      toast('Анализ включён');
+    }
+    close();
   });
   q('#logout').addEventListener('click', () => {
     close();

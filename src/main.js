@@ -1,6 +1,6 @@
 import './style.css';
 import { initTelegram, storage, haptic } from './tg.js';
-import { YaDisk, DemoDisk, AuthError, isAbort } from './api.js';
+import { YaDisk, AuthError, isAbort } from './api.js';
 import { loadIndex, saveIndex, clearIndex, previewStore } from './store.js';
 import { PreviewLoader } from './loader.js';
 import { Library } from './library.js';
@@ -8,7 +8,9 @@ import { Collections, openPage } from './collections.js';
 import { Search } from './search.js';
 import { Favorites } from './favorites.js';
 import { openViewer } from './viewer.js';
-import { showSetup, showSettings, toast } from './screens.js';
+import { showSetup, showSettings, toast, askText } from './screens.js';
+import { takeOAuthResult } from './auth.js';
+import { Indexer } from './ml/indexer.js';
 
 const FULL_REFRESH_MS = 24 * 3600 * 1000;
 const app = document.getElementById('app');
@@ -17,11 +19,23 @@ initTelegram();
 boot();
 
 async function boot(message) {
-  const demo = new URLSearchParams(location.search).has('demo') || (await storage.get('demo')) === '1';
-  const token = demo ? null : await storage.get('ya_token');
+  // Вернулись со страницы входа Яндекса?
+  const oauth = takeOAuthResult();
+  if (oauth?.error) message = oauth.error;
+  if (oauth?.token) {
+    app.innerHTML = '<div class="empty"><span class="spinner"></span><div>Подключаю Яндекс Диск…</div></div>';
+    try {
+      const me = await new YaDisk(oauth.token).me();
+      await storage.set('ya_token', oauth.token);
+      toast(me.name ? `Подключено: ${me.name}` : 'Подключено');
+    } catch (e) {
+      message = e instanceof AuthError ? 'Яндекс не подтвердил доступ. Попробуйте ещё раз.' : `Не удалось проверить доступ: ${e.message}`;
+    }
+  }
+  const token = await storage.get('ya_token');
   app.textContent = '';
-  if (!demo && !token) return showSetup(app, { onDone: () => boot(), message });
-  startLibrary(demo ? new DemoDisk() : new YaDisk(token));
+  if (!token) return showSetup(app, { onDone: () => boot(), message });
+  startLibrary(new YaDisk(token));
 }
 
 function normFolder(v) {
@@ -47,6 +61,7 @@ async function startLibrary(disk) {
     const prefix = normFolder(folder);
     shown = prefix ? all.filter((it) => it.p.startsWith(prefix + '/')) : all;
     library.setItems(shown);
+    indexer.setItems(shown);
     collections.setItems(shown);
     search.setItems(shown);
   };
@@ -73,13 +88,19 @@ async function startLibrary(disk) {
   });
   showTab('library');
 
+  const indexer = new Indexer({ ns, disk, store });
+  if (import.meta.env.DEV) window.__ix = indexer; // для отладки в браузере
+  const askName = (current) =>
+    askText({ title: current ? 'Изменить имя' : 'Кто это?', message: 'Если дать двум карточкам одно имя, они объединятся.', value: current, placeholder: 'Имя' });
   const openV = (items, index, host) => openViewer({ items, index, thumbs, bigs, disk, host, favorites, toast });
   const collections = new Collections(tabEl('collections'), {
     loader: thumbs,
     favorites,
+    indexer,
+    askName,
     openPage: (opts) => openPage(tabEl('collections'), { ...opts, loader: thumbs, onOpen: openV }),
   });
-  const search = new Search(tabEl('search'), { loader: thumbs, onOpen: openV });
+  const search = new Search(tabEl('search'), { loader: thumbs, onOpen: openV, indexer });
 
   const library = new Library(tabEl('library'), {
     loader: thumbs,
@@ -89,6 +110,7 @@ async function startLibrary(disk) {
         disk,
         count: shown.length,
         folder,
+        indexer,
         onFolder: async (v) => {
           folder = v;
           await storage.set('folder', v);
@@ -104,7 +126,7 @@ async function startLibrary(disk) {
           thumbs.clearMemory();
           await store.clear();
           await clearIndex(ns);
-          await storage.remove(ns === 'demo' ? 'demo' : 'ya_token');
+          await storage.remove('ya_token');
           boot();
         },
       }),

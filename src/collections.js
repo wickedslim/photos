@@ -155,10 +155,11 @@ const isScreenshot = (it) => /\.png$/i.test(it.n) || /screenshot|скриншо�
 
 // ── Экран ──────────────────────────────────────────────────────────
 export class Collections {
-  constructor(root, { loader, favorites, onOpen, openPage }) {
+  constructor(root, { loader, favorites, indexer, openPage, askName }) {
     this.loader = loader;
+    this.indexer = indexer;
+    this.askName = askName;
     this.favorites = favorites;
-    this.onOpen = onOpen;
     this.openPage = openPage;
     this.items = [];
     this.root = el('div', 'collections scroller');
@@ -166,12 +167,28 @@ export class Collections {
     this.jobs = new Map();
     this.io = new IntersectionObserver((e) => this.onIntersect(e), { rootMargin: '300px' });
     this.root.addEventListener('click', (e) => {
+      const ml = e.target.closest('[data-ml]');
+      if (ml) {
+        this.indexer.enable();
+        return;
+      }
+      const person = e.target.closest('[data-person]');
+      if (person) return this.openPerson(this.people[Number(person.dataset.person)]);
       const c = e.target.closest('[data-c]');
       if (c) this.open(this.cols[Number(c.dataset.c)]);
     });
+    // Анализ фото идёт фоном: статус обновляем часто, а сами коллекции — не чаще раза в пару секунд.
+    indexer.addEventListener('progress', () => this.renderMlStatus());
+    indexer.addEventListener('update', () => {
+      if (this.updT) return;
+      this.updT = setTimeout(() => {
+        this.updT = 0;
+        this.render(true);
+      }, 2000);
+    });
     favorites.onChange(() => {
       clearTimeout(this.favT);
-      this.favT = setTimeout(() => this.render(), 300);
+      this.favT = setTimeout(() => this.render(true), 300);
     });
   }
 
@@ -184,7 +201,98 @@ export class Collections {
     this.openPage({ title: col.title, items: col.items });
   }
 
-  render() {
+  openPerson(person) {
+    if (!person) return;
+    const page = this.openPage({
+      title: person.name || 'Без имени',
+      items: person.items,
+      action: {
+        label: person.name ? 'Изменить' : 'Имя',
+        onClick: async () => {
+          const name = await this.askName(person.name);
+          if (name == null) return;
+          this.indexer.rename(person.ids, name);
+          page.setTitle(name.trim() || 'Без имени');
+        },
+      },
+    });
+  }
+
+  mlStatusText() {
+    const ix = this.indexer;
+    if (!ix.enabled) return '';
+    const pct = (x) => Math.round(x * 100) + '%';
+    switch (ix.state) {
+      case 'loading':
+        return ix.models.vision < 1 ? `Скачиваю модели распознавания… ${pct(ix.models.vision)}` : 'Готовлю распознавание…';
+      case 'running':
+        return `Анализирую фото: ${ix.done.toLocaleString('ru')} из ${ix.total.toLocaleString('ru')}`;
+      case 'paused':
+        return `Пауза: ${ix.done.toLocaleString('ru')} из ${ix.total.toLocaleString('ru')}. Продолжится, когда приложение открыто`;
+      case 'error':
+        return `Ошибка: ${ix.error}`;
+      case 'done':
+        return `Проанализировано ${ix.done.toLocaleString('ru')} фото`;
+      default:
+        return 'Подготовка…';
+    }
+  }
+
+  renderMlStatus() {
+    const st = this.root.querySelector('.ml-status');
+    if (!st) {
+      // Анализ только что включили, а на экране ещё карточка «Включить» — перерисуем один раз.
+      if (this.indexer.enabled && this.items.length && !this.rendering) this.render(true);
+      return;
+    }
+    st.textContent = this.mlStatusText();
+    const bar = this.root.querySelector('.ml-bar > i');
+    if (bar) {
+      const ix = this.indexer;
+      const v = ix.state === 'loading' ? ix.models.vision : ix.total ? ix.done / ix.total : 0;
+      bar.style.width = Math.round(v * 100) + '%';
+      bar.parentElement.hidden = ix.state === 'done';
+    }
+    const retry = this.root.querySelector('.ml-retry');
+    if (retry) retry.hidden = this.indexer.state !== 'error';
+  }
+
+  peopleSection() {
+    const ix = this.indexer;
+    if (!ix.enabled) {
+      return `<section class="c-section"><div class="ml-promo">
+        <div class="ml-promo-title">✨ Люди и умный поиск</div>
+        <p>Приложение само найдёт лица и научится искать по содержимому: «море», «кот», «торт», «закат».</p>
+        <p>Всё анализируется прямо на вашем телефоне — фото никуда не отправляются.</p>
+        <p class="muted">Нужно один раз скачать ≈ 100 МБ, лучше по Wi-Fi. Анализ идёт, пока приложение открыто.</p>
+        <button class="big-btn" data-ml="enable">Включить</button>
+      </div></section>`;
+    }
+    this.people = ix.people();
+    const cards = this.people
+      .map((p, i) => `<button class="person" data-person="${i}"><div class="face"${p.cover ? ' data-face' : ''}><img alt=""></div>
+        <div class="person-name${p.name ? '' : ' muted'}">${esc(p.name || '+ Имя')}</div><div class="c-sub">${p.items.length.toLocaleString('ru')}</div></button>`)
+      .join('');
+    return `<section class="c-section">
+      <div class="c-head"><h2>Люди</h2></div>
+      <div class="ml-line"><span class="ml-status">${esc(this.mlStatusText())}</span><button class="text-btn ml-retry" data-ml="retry" hidden>Повторить</button></div>
+      <div class="ml-bar"><i></i></div>
+      ${cards ? `<div class="carousel people">${cards}</div>` : `<div class="empty-inline">${ix.state === 'done' ? 'Лиц пока не нашлось' : 'Люди появятся здесь по мере анализа'}</div>`}
+    </section>`;
+  }
+
+  render(keepScroll) {
+    this.rendering = true;
+    try {
+      this.renderInner(keepScroll);
+    } finally {
+      this.rendering = false;
+    }
+    this.renderMlStatus();
+  }
+
+  renderInner(keepScroll) {
+    const scrollTop = this.root.scrollTop;
     const items = this.items;
     const days = byDays(items);
     const fav = items.filter((it) => this.favorites.has(it.p));
@@ -218,6 +326,7 @@ export class Collections {
       <div class="large-title c-title">Коллекции</div>
       ${items.length ? '' : '<div class="empty-inline">Фото пока нет</div>'}
       ${section('Недавние дни', 'tall', recentDays(days))}
+      ${this.peopleSection()}
       ${section('В этот день', 'wide', onThisDay(days))}
       ${section('Поездки', 'wide', tripList)}
       ${section('Альбомы', 'album', albums, `${albums.length - 1} папок на Диске`)}
@@ -225,7 +334,8 @@ export class Collections {
         .map((c) => `<button class="row" data-c="${add(c)}"><span class="row-icon">${ICON[c.icon]}</span><span class="row-title">${c.title}</span><span class="muted">${c.sub} ›</span></button>`)
         .join('')}</div></section>` : ''}
       <div class="c-foot">Коллекции собираются на устройстве и обновляются автоматически.</div>`;
-    this.root.querySelectorAll('.c-card[data-cover]').forEach((card) => this.io.observe(card));
+    this.root.querySelectorAll('.c-card[data-cover], .person .face[data-face]').forEach((card) => this.io.observe(card));
+    if (keepScroll === true) this.root.scrollTop = scrollTop;
   }
 
   card(c, i, cls) {
@@ -245,10 +355,17 @@ export class Collections {
       const card = e.target;
       const img = card.querySelector('img');
       if (!img) continue;
-      const col = this.cols[Number(card.dataset.c)];
+      let cover;
+      let size = card.closest('.wide') ? 'XL' : 'L';
+      if (card.classList.contains('face')) {
+        const person = this.people[Number(card.parentElement.dataset.person)];
+        cover = person.cover.item;
+        size = 'L';
+        img.onload = () => placeFace(img, card, person.cover.b);
+      } else cover = this.cols[Number(card.dataset.c)].cover;
+      const col = { cover };
       if (e.isIntersecting) {
         if (img.getAttribute('src')) continue;
-        const size = card.closest('.wide') ? 'XL' : 'L';
         const now = this.loader.peek(col.cover, size);
         if (now) {
           img.src = now;
@@ -273,14 +390,31 @@ const ICON = {
   pin: '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.3" fill="currentColor"/></svg>',
 };
 
+// Аватар человека: вырезаем лицо из миниатюры (рамка лица хранится в долях кадра).
+function placeFace(img, box, b) {
+  const W = img.naturalWidth;
+  const H = img.naturalHeight;
+  const S = box.clientWidth;
+  if (!W || !S) return;
+  const side = Math.max(b[2] * W, b[3] * H) * 1.6;
+  const k = S / side;
+  const cx = (b[0] + b[2] / 2) * W;
+  const cy = (b[1] + b[3] / 2) * H;
+  img.style.width = `${W * k}px`;
+  img.style.height = `${H * k}px`;
+  img.style.left = `${S / 2 - cx * k}px`;
+  img.style.top = `${S / 2 - cy * k}px`;
+}
+
 // ── Страница коллекции (открывается поверх вкладки, как push в iOS) ──
-export function openPage(parent, { title, items, loader, onOpen }) {
+export function openPage(parent, { title, items, loader, onOpen, action }) {
   const page = el('div', 'page');
   page.innerHTML = `
     <div class="page-grid scroller"></div>
     <header class="page-head">
       <button class="page-back" aria-label="Назад"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M15 4 7 12l8 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Назад</button>
-      <div class="page-title"><div>${esc(title)}</div><div class="muted">${photosCount(items.length)}</div></div>
+      <div class="page-title"><div class="page-title-text">${esc(title)}</div><div class="muted">${photosCount(items.length)}</div></div>
+      ${action ? `<button class="page-action">${esc(action.label)}</button>` : ''}
     </header>
     ${items.length ? '' : '<div class="empty">Здесь пока пусто</div>'}`;
   parent.append(page);
@@ -298,5 +432,9 @@ export function openPage(parent, { title, items, loader, onOpen }) {
   };
   popBack = pushBack(close);
   page.querySelector('.page-back').addEventListener('click', close);
-  return close;
+  if (action) page.querySelector('.page-action').addEventListener('click', action.onClick);
+  return {
+    close,
+    setTitle: (t) => (page.querySelector('.page-title-text').textContent = t),
+  };
 }

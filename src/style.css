@@ -249,3 +249,46 @@ input { font: inherit; color: inherit; }
 .v-heart.on { --heart-fill: currentColor; }
 .search-empty { position: absolute; left: 0; right: 0; top: calc(var(--top-inset) + 150px); padding: 0 32px; text-align: center; font-size: 15px; display: flex; flex-direction: column; gap: 10px; color: var(--text); }
 .search-empty-title { font-size: 20px; font-weight: 700; }
+
+/* экран подключения */
+.promises { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.promises li { display: flex; gap: 14px; align-items: flex-start; font-size: 15px; color: var(--muted); }
+.promises li b { color: var(--text); font-weight: 600; }
+.promises li > span { font-size: 26px; line-height: 1; width: 34px; text-align: center; flex: none; }
+.setup-hint { font-size: 13px; color: var(--muted); text-align: center; padding: 10px 12px 0; }
+.text-btn.small { font-size: 14px; color: var(--muted); margin-top: 10px; }
+.big-btn.secondary { margin-top: 14px; }
+.manual { padding-bottom: 12px; }
+
+/* ── Люди и умный поиск ──────────────────────── */
+.ml-promo { margin: 0 16px; padding: 18px; border-radius: 16px; background: var(--grouped-bg); font-size: 15px; }
+[data-theme='dark'] .ml-promo { background: #1c1c1e; }
+.ml-promo-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+.ml-promo p { margin: 6px 0; }
+.ml-promo .big-btn { margin-top: 14px; }
+.ml-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 16px 8px; font-size: 13px; color: var(--muted); margin-top: -4px; }
+.ml-line .text-btn { margin: 0; font-size: 13px; }
+.ml-bar { margin: 0 16px 12px; height: 3px; border-radius: 2px; background: var(--sep); overflow: hidden; }
+.ml-bar > i { display: block; height: 100%; width: 0; background: var(--tint); transition: width .4s ease; }
+.carousel.people { gap: 14px; }
+.person { flex: none; width: 92px; scroll-snap-align: start; text-align: center; }
+.person .face { position: relative; width: 92px; height: 92px; border-radius: 50%; overflow: hidden; background: var(--placeholder); }
+.person .face img { position: absolute; max-width: none; }
+.person .face img:not([src]) { visibility: hidden; }
+.person-name { font-size: 14px; font-weight: 500; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person:active .face { transform: scale(.96); transition: transform .15s; }
+.page-action { position: absolute; right: 12px; bottom: 10px; color: var(--tint); font-size: 17px; z-index: 1; }
+.search-empty .big-btn { margin-top: 6px; }
+
+/* окошко ввода имени */
+.alert-wrap { position: fixed; inset: 0; z-index: 200000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.35); opacity: 0; transition: opacity .2s; }
+.alert-wrap.open { opacity: 1; }
+.alert { width: 272px; border-radius: 14px; background: var(--material-strong); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); text-align: center; overflow: hidden; transform: scale(1.1); transition: transform .2s; }
+.alert-wrap.open .alert { transform: none; }
+.alert-title { font-weight: 600; font-size: 17px; padding: 18px 16px 2px; }
+.alert-msg { font-size: 13px; padding: 2px 16px 0; color: var(--text); }
+.alert-input { width: calc(100% - 32px); margin: 14px 16px 16px; padding: 7px 8px; border-radius: 7px; border: .5px solid var(--sep); background: var(--bg); font-size: 15px; outline: 0; }
+.alert-btns { display: flex; border-top: .5px solid var(--sep); }
+.alert-btns button { flex: 1; padding: 11px; color: var(--tint); font-size: 17px; }
+.alert-btns button + button { border-left: .5px solid var(--sep); }
+.alert-btns .bold { font-weight: 600; }
