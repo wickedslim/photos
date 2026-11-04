@@ -217,7 +217,7 @@ export class Grid {
     const bar = el('div', 'scrubber', '<i></i>');
     host.append(bar);
     const BAR_H = 64;
-    const st = { dragging: false, visible: false, hideT: 0, row: -1 };
+    const st = { dragging: false, visible: false, hideT: 0, row: -1, travel: 0, lastY: 0, lastT: 0 };
     this.scrub = st;
 
     const track = () => {
@@ -249,6 +249,20 @@ export class Grid {
       'scroll',
       () => {
         if (this.el.scrollHeight < this.el.clientHeight * 2.5 || !this.el.offsetParent) return;
+        // Появляемся не сразу, а когда за одну прокрутку пролистали больше двух экранов.
+        const now = performance.now();
+        const y = this.el.scrollTop;
+        const delta = Math.abs(y - st.lastY);
+        st.lastY = y;
+        if (now - st.lastT > 500) st.travel = 0; // пауза — начался новый жест
+        st.lastT = now;
+        // Скачок сразу на много экранов — это программный переход (открыли ленту, выбрали месяц), а не палец.
+        if (delta > this.el.clientHeight * 3 && !st.dragging) {
+          st.travel = 0;
+          return;
+        }
+        st.travel += delta;
+        if (!st.visible && !st.dragging && st.travel < this.el.clientHeight * 2) return;
         place();
         show();
         // Лёгкий щелчок вибрацией на каждой новой строке, пока тащим ползунок.
