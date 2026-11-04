@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
+  <!-- Welcome Picture для бота: тот же закат, что на аватарке, в широком формате -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2B1B6B"/>
+      <stop offset="0.5" stop-color="#C2477E"/>
+      <stop offset="0.8" stop-color="#FF9A5A"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFE7A3" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#FFE7A3" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="txt" x="-10%" y="-30%" width="120%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#1A0B3D" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#sky)"/>
+  <circle cx="640" cy="500" r="300" fill="url(#sunGlow)"/>
+  <circle cx="640" cy="505" r="105" fill="#FFE29A"/>
+  <path d="M0 560 L220 410 L380 520 L560 420 L720 530 L900 400 L1080 510 L1280 430 L1280 720 L0 720 Z" fill="#6B2C7A"/>
+  <path d="M0 640 C220 580 420 600 640 630 C860 660 1060 610 1280 600 L1280 720 L0 720 Z" fill="#3B1650"/>
+
+  <!-- уголки видоискателя по краям кадра -->
+  <g fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
+    <path d="M70 150 V100 Q70 70 100 70 H150"/>
+    <path d="M1130 70 H1180 Q1210 70 1210 100 V150"/>
+    <path d="M1210 570 V620 Q1210 650 1180 650 H1130"/>
+    <path d="M150 650 H100 Q70 650 70 620 V570"/>
+  </g>
+
+  <g filter="url(#txt)" fill="#fff" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+    <text x="640" y="235" font-size="112" font-weight="700" letter-spacing="1">Фотоплёнка</text>
+    <text x="640" y="315" font-size="44" font-weight="400" opacity="0.92">Ваши фото с Яндекс Диска</text>
+  </g>
+</svg>

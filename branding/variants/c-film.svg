@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Фотоплёнка: диагональная плёнка с тремя кадрами -->
+  <defs>
+    <radialGradient id="bg" cx="0.3" cy="0.25" r="1">
+      <stop offset="0" stop-color="#3A3A46"/>
+      <stop offset="1" stop-color="#121216"/>
+    </radialGradient>
+    <linearGradient id="f1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB347"/><stop offset="1" stop-color="#FF5E62"/>
+    </linearGradient>
+    <linearGradient id="f2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5AC8FA"/><stop offset="1" stop-color="#B8E8FF"/>
+    </linearGradient>
+    <linearGradient id="f3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A18CFF"/><stop offset="1" stop-color="#5B3FD9"/>
+    </linearGradient>
+    <clipPath id="c1"><rect x="-330" y="-110" width="200" height="220" rx="22"/></clipPath>
+    <clipPath id="c2"><rect x="-100" y="-110" width="200" height="220" rx="22"/></clipPath>
+    <clipPath id="c3"><rect x="130" y="-110" width="200" height="220" rx="22"/></clipPath>
+    <filter id="shadow" x="-20%" y="-30%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g transform="translate(512 512) rotate(-30)" filter="url(#shadow)">
+    <!-- лента -->
+    <rect x="-620" y="-180" width="1240" height="360" fill="#FFC23D"/>
+    <!-- перфорация -->
+    <g fill="#121216" opacity="0.85">
+      <rect x="-600" y="-160" width="34" height="34" rx="8"/>
+      <rect x="-540" y="-160" width="34" height="34" rx="8"/>
+      <rect x="-480" y="-160" width="34" height="34" rx="8"/>
+      <rect x="-420" y="-160" width="34" height="34" rx="8"/>
+      <rect x="-360" y="-160" width="34" height="34" rx="8"/>
+      <rect x="-300" y="-160" width="34" height="34" rx="8"/>
+      <rect x="-240" y="-160" width="34" height="34" rx="8"/>
+      <rect x="-180" y="-160" width="34" height="34" rx="8"/>
+      <rect x="-120" y="-160" width="34" height="34" rx="8"/>
+      <rect x="-60" y="-160" width="34" height="34" rx="8"/>
+      <rect x="0" y="-160" width="34" height="34" rx="8"/>
+      <rect x="60" y="-160" width="34" height="34" rx="8"/>
+      <rect x="120" y="-160" width="34" height="34" rx="8"/>
+      <rect x="180" y="-160" width="34" height="34" rx="8"/>
+      <rect x="240" y="-160" width="34" height="34" rx="8"/>
+      <rect x="300" y="-160" width="34" height="34" rx="8"/>
+      <rect x="360" y="-160" width="34" height="34" rx="8"/>
+      <rect x="420" y="-160" width="34" height="34" rx="8"/>
+      <rect x="480" y="-160" width="34" height="34" rx="8"/>
+      <rect x="540" y="-160" width="34" height="34" rx="8"/>
+      <rect x="-600" y="126" width="34" height="34" rx="8"/>
+      <rect x="-540" y="126" width="34" height="34" rx="8"/>
+      <rect x="-480" y="126" width="34" height="34" rx="8"/>
+      <rect x="-420" y="126" width="34" height="34" rx="8"/>
+      <rect x="-360" y="126" width="34" height="34" rx="8"/>
+      <rect x="-300" y="126" width="34" height="34" rx="8"/>
+      <rect x="-240" y="126" width="34" height="34" rx="8"/>
+      <rect x="-180" y="126" width="34" height="34" rx="8"/>
+      <rect x="-120" y="126" width="34" height="34" rx="8"/>
+      <rect x="-60" y="126" width="34" height="34" rx="8"/>
+      <rect x="0" y="126" width="34" height="34" rx="8"/>
+      <rect x="60" y="126" width="34" height="34" rx="8"/>
+      <rect x="120" y="126" width="34" height="34" rx="8"/>
+      <rect x="180" y="126" width="34" height="34" rx="8"/>
+      <rect x="240" y="126" width="34" height="34" rx="8"/>
+      <rect x="300" y="126" width="34" height="34" rx="8"/>
+      <rect x="360" y="126" width="34" height="34" rx="8"/>
+      <rect x="420" y="126" width="34" height="34" rx="8"/>
+      <rect x="480" y="126" width="34" height="34" rx="8"/>
+      <rect x="540" y="126" width="34" height="34" rx="8"/>
+    </g>
+    <!-- кадр 1: закат над морем -->
+    <g clip-path="url(#c1)">
+      <rect x="-330" y="-110" width="200" height="220" fill="url(#f1)"/>
+      <circle cx="-230" cy="10" r="40" fill="#FFE29A"/>
+      <rect x="-330" y="20" width="200" height="90" fill="#C2185B" opacity="0.85"/>
+    </g>
+    <!-- кадр 2: горы -->
+    <g clip-path="url(#c2)">
+      <rect x="-100" y="-110" width="200" height="220" fill="url(#f2)"/>
+      <circle cx="50" cy="-55" r="24" fill="#FFD60A"/>
+      <path d="M-100 110 L-30 0 L20 60 L60 20 L100 80 L100 110 Z" fill="#34C759"/>
+    </g>
+    <!-- кадр 3: ночь -->
+    <g clip-path="url(#c3)">
+      <rect x="130" y="-110" width="200" height="220" fill="url(#f3)"/>
+      <circle cx="270" cy="-50" r="26" fill="#FFF6D5"/>
+      <circle cx="258" cy="-58" r="24" fill="#8B74F5"/>
+      <path d="M130 110 L130 50 C180 20 260 30 330 60 L330 110 Z" fill="#2E1E8A"/>
+    </g>
+  </g>
+</svg>

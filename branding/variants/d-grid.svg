@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Сетка галереи 3×3: как лента «Все фото» -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#ECECF2"/>
+    </linearGradient>
+    <linearGradient id="t1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9F43"/><stop offset="1" stop-color="#FF5E62"/></linearGradient>
+    <linearGradient id="t2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5AC8FA"/><stop offset="1" stop-color="#007AFF"/></linearGradient>
+    <linearGradient id="t3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34C759"/><stop offset="1" stop-color="#0E9F6E"/></linearGradient>
+    <linearGradient id="t4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#BF5AF2"/><stop offset="1" stop-color="#5E5CE6"/></linearGradient>
+    <linearGradient id="t5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5AC8FA"/><stop offset="1" stop-color="#B8E8FF"/></linearGradient>
+    <linearGradient id="t6" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD60A"/><stop offset="1" stop-color="#FF9F0A"/></linearGradient>
+    <linearGradient id="t7" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF6B9A"/><stop offset="1" stop-color="#FF2D55"/></linearGradient>
+    <linearGradient id="t8" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#64D2FF"/><stop offset="1" stop-color="#30B0C7"/></linearGradient>
+    <linearGradient id="t9" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A2845E"/><stop offset="1" stop-color="#6E5236"/></linearGradient>
+    <clipPath id="mid"><rect x="402" y="402" width="220" height="220" rx="36"/></clipPath>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g>
+    <rect x="172" y="172" width="220" height="220" rx="36" fill="url(#t1)"/>
+    <rect x="402" y="172" width="220" height="220" rx="36" fill="url(#t2)"/>
+    <rect x="632" y="172" width="220" height="220" rx="36" fill="url(#t3)"/>
+    <rect x="172" y="402" width="220" height="220" rx="36" fill="url(#t4)"/>
+    <rect x="632" y="402" width="220" height="220" rx="36" fill="url(#t6)"/>
+    <rect x="172" y="632" width="220" height="220" rx="36" fill="url(#t7)"/>
+    <rect x="402" y="632" width="220" height="220" rx="36" fill="url(#t8)"/>
+    <rect x="632" y="632" width="220" height="220" rx="36" fill="url(#t9)"/>
+  </g>
+  <!-- центральная плитка «открыта»: крупнее, с пейзажем -->
+  <g transform="translate(512 512) scale(1.28) translate(-512 -512)" filter="url(#shadow)">
+    <rect x="394" y="394" width="236" height="236" rx="42" fill="#fff"/>
+    <g clip-path="url(#mid)">
+      <rect x="402" y="402" width="220" height="220" fill="url(#t5)"/>
+      <circle cx="568" cy="455" r="26" fill="#FFD60A"/>
+      <path d="M402 600 L470 505 L520 560 L555 525 L622 600 L622 622 L402 622 Z" fill="#34C759"/>
+    </g>
+  </g>
+</svg>

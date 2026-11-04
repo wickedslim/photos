@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF9F43"/>
+      <stop offset="0.5" stop-color="#FF5E62"/>
+      <stop offset="1" stop-color="#8E44FF"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5AC8FA"/>
+      <stop offset="1" stop-color="#B8E8FF"/>
+    </linearGradient>
+    <linearGradient id="hillBack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4CD3A0"/>
+      <stop offset="1" stop-color="#2FAE7E"/>
+    </linearGradient>
+    <linearGradient id="hillFront" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34C759"/>
+      <stop offset="1" stop-color="#1E9E45"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#3A0A40" flood-opacity="0.35"/>
+    </filter>
+    <clipPath id="photo">
+      <rect x="292" y="322" width="440" height="360" rx="28"/>
+    </clipPath>
+  </defs>
+
+  <!-- background (full bleed: Telegram crops to a circle, Yandex rounds corners) -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="520" fill="#fff" opacity="0.06"/>
+
+  <!-- back photo, tilted -->
+  <g transform="rotate(-12 512 512)" filter="url(#shadow)">
+    <rect x="262" y="282" width="500" height="460" rx="44" fill="#fff" opacity="0.55"/>
+  </g>
+
+  <!-- front photo -->
+  <g transform="rotate(6 512 512)" filter="url(#shadow)">
+    <rect x="262" y="292" width="500" height="460" rx="44" fill="#fff"/>
+    <g clip-path="url(#photo)">
+      <rect x="292" y="322" width="440" height="360" fill="url(#sky)"/>
+      <circle cx="630" cy="420" r="48" fill="#FFD60A"/>
+      <path d="M262 640 L420 470 L520 570 L590 500 L760 680 L760 720 L262 720 Z" fill="url(#hillBack)"/>
+      <path d="M262 700 C380 600 470 610 560 650 C640 685 700 640 760 610 L760 720 L262 720 Z" fill="url(#hillFront)"/>
+    </g>
+  </g>
+</svg>

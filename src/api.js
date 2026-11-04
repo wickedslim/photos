@@ -59,7 +59,7 @@ export class YaDisk {
   async api(path, params = {}, signal) {
     const url = new URL(BASE + path);
     for (const [k, v] of Object.entries(params)) if (v != null) url.searchParams.set(k, v);
-    const res = await fetch(url, { headers: this.headers, signal });
+    const res = await fetch(url, { headers: this.headers, signal, referrerPolicy: 'no-referrer' });
     if (res.status === 401) throw new AuthError('Токен недействителен или отозван');
     if (!res.ok) {
       let msg = res.statusText;
@@ -112,7 +112,8 @@ export class YaDisk {
   }
 
   async fetchBlob(url, signal) {
-    const res = await fetch(url, { headers: this.headers, signal });
+    // Без Referer: с ним downloader.disk.yandex.ru не отвечает на CORS-запрос и превью не грузятся.
+    const res = await fetch(url, { headers: this.headers, signal, referrerPolicy: 'no-referrer' });
     if (!res.ok) {
       const e = new Error('HTTP ' + res.status);
       e.status = res.status;

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Облако-фото: снимки, которые живут в облаке -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#4FACFE"/>
+      <stop offset="1" stop-color="#2A5BFF"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB86B"/>
+      <stop offset="1" stop-color="#FF6F91"/>
+    </linearGradient>
+    <clipPath id="cloud">
+      <circle cx="400" cy="560" r="150"/>
+      <circle cx="560" cy="470" r="190"/>
+      <circle cx="700" cy="590" r="120"/>
+      <rect x="250" y="560" width="570" height="150" rx="75"/>
+    </clipPath>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="26" flood-color="#0A1F80" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g transform="translate(512 500) scale(1.32) translate(-535 -540)">
+  <g filter="url(#shadow)">
+    <g clip-path="url(#cloud)">
+      <rect x="200" y="260" width="650" height="480" fill="#fff"/>
+    </g>
+  </g>
+  <!-- сцена внутри облака с белой каймой -->
+  <g transform="translate(512 560) scale(0.86) translate(-512 -560)">
+    <g clip-path="url(#cloud)">
+      <rect x="200" y="260" width="650" height="480" fill="url(#sky)"/>
+      <circle cx="600" cy="470" r="62" fill="#FFF3B0"/>
+      <path d="M240 720 L420 520 L520 620 L610 540 L840 720 Z" fill="#5B3FD9"/>
+      <path d="M240 720 C380 640 480 650 580 680 C680 710 760 660 840 640 L840 740 L240 740 Z" fill="#3A27A8"/>
+    </g>
+  </g>
+  </g>
+</svg>
