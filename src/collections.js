@@ -432,9 +432,60 @@ export function openPage(parent, { title, items, loader, onOpen, action }) {
   };
   popBack = pushBack(close);
   page.querySelector('.page-back').addEventListener('click', close);
+  swipeBack(page, close);
   if (action) page.querySelector('.page-action').addEventListener('click', action.onClick);
   return {
     close,
     setTitle: (t) => (page.querySelector('.page-title-text').textContent = t),
   };
+}
+
+// Свайп вправо — назад, как на iPhone: страница едет за пальцем, отпустил — закрылась
+// (или вернулась на место, если потянул совсем чуть-чуть). Работает с любого места экрана.
+function swipeBack(page, close) {
+  let x0 = 0;
+  let y0 = 0;
+  let t0 = 0;
+  let dx = 0;
+  let mode = ''; // '' — ещё не поняли жест, 'swipe' — тянем страницу, 'skip' — это прокрутка
+  page.addEventListener(
+    'touchstart',
+    (e) => {
+      if (e.touches.length !== 1) return (mode = 'skip');
+      x0 = e.touches[0].clientX;
+      y0 = e.touches[0].clientY;
+      t0 = performance.now();
+      dx = 0;
+      mode = '';
+    },
+    { passive: true },
+  );
+  page.addEventListener(
+    'touchmove',
+    (e) => {
+      if (mode === 'skip' || e.touches.length !== 1) return;
+      const mx = e.touches[0].clientX - x0;
+      const my = e.touches[0].clientY - y0;
+      if (!mode) {
+        if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
+        mode = mx > 0 && mx > Math.abs(my) * 1.4 ? 'swipe' : 'skip';
+        if (mode !== 'swipe') return;
+        page.classList.add('swiping');
+      }
+      e.preventDefault(); // пока тянем страницу, лента под пальцем не прокручивается
+      dx = Math.max(0, mx);
+      page.style.transform = `translateX(${dx}px)`;
+    },
+    { passive: false },
+  );
+  const end = () => {
+    if (mode !== 'swipe') return;
+    mode = 'skip';
+    page.classList.remove('swiping');
+    const v = dx / Math.max(1, performance.now() - t0); // px/мс
+    page.style.transform = '';
+    if (dx > page.clientWidth * 0.35 || (v > 0.35 && dx > 40)) close();
+  };
+  page.addEventListener('touchend', end);
+  page.addEventListener('touchcancel', end);
 }

@@ -237,6 +237,7 @@ input { font: inherit; color: inherit; }
 /* ── Страница коллекции ──────────────────────── */
 .page { position: absolute; inset: 0; z-index: 20; background: var(--bg); transform: translateX(100%); transition: transform .35s cubic-bezier(.3,.9,.3,1); box-shadow: -8px 0 24px rgba(0,0,0,.08); }
 .page.open { transform: none; }
+.page.swiping { transition: none; }
 .page-grid { position: absolute; inset: 0; --pad-top: calc(var(--top-inset) + 56px); }
 .page .grid-footer { padding-bottom: calc(var(--bottom-ui) + 24px); }
 .page-head { position: absolute; left: 0; right: 0; top: 0; z-index: 5; display: flex; align-items: center; min-height: calc(var(--top-inset) + 52px); padding: var(--top-inset) 8px 0;
