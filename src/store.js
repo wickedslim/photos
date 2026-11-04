@@ -1,9 +1,13 @@
 // Локальный кэш: индекс фото — в IndexedDB, превью — в Cache Storage браузера.
 import { get, set, del, createStore, clear } from 'idb-keyval';
 
-const indexKey = (ns) => `index-v2:${ns}`;
+// v3: в v2 из-за ошибки пагинации терялась часть фото — старый список не используем.
+const indexKey = (ns) => `index-v3:${ns}`;
 
-export const loadIndex = (ns) => get(indexKey(ns));
+export const loadIndex = (ns) => {
+  del(`index-v2:${ns}`).catch(() => {}); // убираем устаревший список
+  return get(indexKey(ns));
+};
 export const saveIndex = (ns, data) => set(indexKey(ns), data);
 export const clearIndex = (ns) => del(indexKey(ns));
 
