@@ -17,7 +17,23 @@ const NS = 'real'; // пространство имён локальных да�
 const app = document.getElementById('app');
 
 initTelegram();
+checkForUpdate();
 boot();
+
+// Вышла новая версия, а Telegram показал старую из кэша — один раз перезагружаемся на свежую.
+// Адрес с ?v=<номер> не совпадает с закэшированным, поэтому страница точно придёт заново.
+async function checkForUpdate() {
+  if (import.meta.env.DEV) return;
+  try {
+    const res = await fetch('version.json', { cache: 'no-store' });
+    const { build } = await res.json();
+    if (!build || build === __BUILD_ID__) return;
+    const url = new URL(location.href);
+    if (url.searchParams.get('v') === build) return; // уже пробовали — не зацикливаемся
+    url.searchParams.set('v', build);
+    location.replace(url.toString());
+  } catch {}
+}
 
 async function boot(message) {
   // Вернулись со страницы входа Яндекса?
