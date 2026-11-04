@@ -20,6 +20,11 @@ initTelegram();
 boot();
 
 async function boot(message) {
+  // Тестовая медиатека для скриншотов (только в режиме разработки): http://localhost:5173/?mock
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('mock')) {
+    const { MockDisk } = await import('./mock.js');
+    return startLibrary(new MockDisk());
+  }
   // Вернулись со страницы входа Яндекса?
   const oauth = takeOAuthResult();
   if (oauth?.error) message = oauth.error;
@@ -58,9 +63,9 @@ function normFolder(v) {
 }
 
 async function startLibrary(disk) {
-  const ns = NS;
+  const ns = disk.kind === 'mock' ? 'mock' : NS; // тестовые данные не смешиваем с настоящими
   // Для тех, кто вошёл до появления проверки аккаунта, запоминаем его сейчас.
-  storage.get('ya_uid').then((uid) => uid || disk.me().then((m) => rememberAccount(m.uid), () => {}));
+  if (disk.kind !== 'mock') storage.get('ya_uid').then((uid) => uid || disk.me().then((m) => rememberAccount(m.uid), () => {}));
   const store = previewStore('previews-' + ns);
   const thumbs = new PreviewLoader(disk, store, { concurrency: 8, persist: true, memLimit: 800 });
   const bigs = new PreviewLoader(disk, store, { concurrency: 3, persist: false, memLimit: 16 });
