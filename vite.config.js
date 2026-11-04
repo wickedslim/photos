@@ -1,48 +1,97 @@
 import { defineConfig } from 'vite';
+import { createHash } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 // Политика безопасности страницы (CSP). Даже если в приложение как-то попадёт чужой код,
 // браузер не даст ему загрузить свои скрипты или отправить данные куда-то, кроме Яндекс Диска.
-//  - скрипты: только наш сайт и официальный скрипт Telegram;
+//  - скрипты: только наш сайт, официальный скрипт Telegram и маленький загрузчик ниже (по его хэшу);
 //  - запросы: Яндекс Диск (API и превью) и Hugging Face (веса моделей для умного поиска);
 //  - картинки: только наши и скачанные с Диска (blob:).
 // В режиме разработки не добавляем — там Vite нужен свой вебсокет.
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self' https://telegram.org 'wasm-unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' blob: data:",
-  "connect-src 'self' blob: https://cloud-api.yandex.net https://downloader.disk.yandex.ru https://huggingface.co https://*.huggingface.co https://*.hf.co",
-  "worker-src 'self' blob:",
-  "font-src 'self'",
-  "frame-src 'none'",
-  "object-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-].join('; ');
+const csp = (loaderHash) =>
+  [
+    "default-src 'self'",
+    `script-src 'self' https://telegram.org 'wasm-unsafe-eval' '${loaderHash}'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    "connect-src 'self' blob: https://cloud-api.yandex.net https://downloader.disk.yandex.ru https://huggingface.co https://*.huggingface.co https://*.hf.co",
+    "worker-src 'self' blob:",
+    "font-src 'self'",
+    "frame-src 'none'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join('; ');
 
-const csp = {
-  name: 'csp',
-  apply: 'build',
-  transformIndexHtml: (html) =>
-    html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`),
+// Загрузчик без перезагрузок.
+// GitHub Pages разрешает хранить страницу в кэше 10 минут, а Telegram держит её и дольше. После обновления
+// закэшированная страница ссылается на старые файлы, и раньше приложению приходилось перезагружаться
+// (а перезагрузка в Telegram — это белая вспышка и скачок). Теперь страница не ссылается на файлы напрямую:
+// крошечный загрузчик берёт их имена из version.json (всегда свежего, мимо кэша) и подключает их.
+// Если сети нет — берёт имена, записанные в саму страницу.
+const loader = (fallback) => `(function () {
+  var d = document, done = false, fb = ${JSON.stringify(fallback)};
+  function start(m) {
+    if (done) return;
+    done = true;
+    var inject = function () {
+      var l = d.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = m.css;
+      l.onload = l.onerror = function () {
+        var s = d.createElement('script');
+        s.type = 'module';
+        s.src = m.js;
+        d.head.appendChild(s);
+      };
+      d.head.appendChild(l);
+    };
+    if (d.readyState === 'loading') d.addEventListener('DOMContentLoaded', inject);
+    else inject();
+  }
+  setTimeout(function () { start(fb); }, 2000);
+  fetch('version.json', { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (m) { start(m && m.js && m.css ? m : fb); })
+    .catch(function () { start(fb); });
+})();`;
+
+// Имена входных файлов берём из самой собранной страницы (их туда вставляет Vite).
+const entryFiles = (html) => {
+  const js = html.match(/<script type="module"[^>]*src="([^"]+)"/)?.[1];
+  const css = html.match(/<link rel="stylesheet"[^>]*href="([^"]+)"/)?.[1];
+  return js && css ? { js, css } : null;
 };
+let built = null;
 
-// Номер сборки: приложение сверяет его с version.json на сайте и, если вышла новая версия,
-// перезагружается мимо кэша (GitHub Pages разрешает хранить страницу в кэше 10 минут, а Telegram — дольше).
-const BUILD_ID = String(Date.now());
-const version = {
-  name: 'version',
+const shell = {
+  name: 'shell',
   apply: 'build',
-  generateBundle() {
-    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID }) });
+  transformIndexHtml: {
+    order: 'post',
+    handler(html) {
+      const files = (built = entryFiles(html));
+      if (!files) throw new Error('shell: не нашёл входной JS/CSS');
+      const code = loader(files);
+      const hash = 'sha256-' + createHash('sha256').update(code).digest('base64');
+      return html
+        .replace(/\s*<script type="module"[^>]*><\/script>/, '')
+        .replace(/\s*<link rel="stylesheet"[^>]*>/, '')
+        .replace(/\s*<link rel="modulepreload"[^>]*>/g, '')
+        .replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${csp(hash)}" />`)
+        .replace('</head>', `  <script>${code}</script>\n  </head>`);
+    },
+  },
+  writeBundle(options) {
+    if (built) writeFileSync(join(options.dir, 'version.json'), JSON.stringify(built));
   },
 };
 
 // base: './' — чтобы сайт работал на GitHub Pages по адресу вида https://user.github.io/repo/
 export default defineConfig({
   base: './',
-  plugins: [csp, version],
-  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
+  plugins: [shell],
   build: { target: 'es2022' },
   // Фоновый поток с моделями — ES-модуль (нужен для динамических импортов внутри transformers.js).
   worker: { format: 'es' },
